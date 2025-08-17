@@ -13,5 +13,11 @@ let package = Package(
     targets: [
         .target(
             name: "NnShellKit"),
+        .testTarget(
+            name: "NnShellKitTests",
+            dependencies: [
+                "NnShellKit"
+            ]
+        )
     ]
 )

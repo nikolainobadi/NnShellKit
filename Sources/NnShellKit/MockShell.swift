@@ -58,7 +58,7 @@ extension MockShell: Shell {
     /// - Throws: `ShellError.failed` if `shouldThrowError` is true.
     @discardableResult
     public func run(_ program: String, args: [String]) throws -> String {
-        let command = "\(program) \(args.joined(separator: " "))"
+        let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
         executedCommands.append(command)
         
         if shouldThrowError {
