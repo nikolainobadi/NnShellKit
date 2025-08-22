@@ -17,7 +17,7 @@
 /// let output = try mock.bash("git branch")  // Returns "branch1"
 /// assert(mock.executedCommands.first == "git branch")
 /// ```
-public final class MockShell {
+public class MockShell {
     /// Determines whether all commands should throw errors.
     private let shouldThrowError: Bool
     
