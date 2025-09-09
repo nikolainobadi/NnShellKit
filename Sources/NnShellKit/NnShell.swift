@@ -88,13 +88,32 @@ public struct NnShell: Shell {
         p.standardOutput = pipe
         p.standardError = pipe
 
+        let reader = pipe.fileHandleForReading
+        var data = Data()
+        let group = DispatchGroup()
+        group.enter()
+
+        let readQueue = DispatchQueue(label: "nnshell.read") // serial
+        readQueue.async {
+            while true {
+                let chunk = reader.availableData
+                if chunk.isEmpty { break }
+                data.append(chunk)
+            }
+            group.leave()
+        }
+
         try p.run()
         p.waitUntilExit()
+        group.wait()
 
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        guard p.terminationStatus == 0 else {
+        // Prefer UTF-8, tolerate invalid bytes
+        let output = String(decoding: data, as: UTF8.self)
+
+        guard p.terminationStatus == 0, p.terminationReason == .exit else {
             throw ShellError.failed(program: program, code: p.terminationStatus, output: output)
         }
+
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
