@@ -25,22 +25,19 @@
 /// assert(mock.executedCommands.first == "git branch")
 /// ```
 public class MockShell {
-    /// Determines whether all commands should throw errors.
+    /// The strategy used for determining command results.
+    private var strategy: ResultStrategy
+
+    /// Determines whether all commands should throw errors (for backwards compatibility).
     private let shouldThrowError: Bool
-    
-    /// A queue of results to return from command executions.
-    /// Results are consumed in FIFO order (first in, first out).
-    private var results: [String]
-    
-    /// A map of commands to their expected results.
-    /// When a command is executed, it's looked up in this map.
-    private var resultMap: [String: String]
-    
+
     /// An array of all commands that have been executed, in order.
     /// For `run()` calls, this contains the program and args joined with spaces.
     /// For `bash()` calls, this contains the exact command string.
     public private(set) var executedCommands: [String] = []
     
+    // MARK: - Initializers
+
     /// Creates a new MockShell instance with array-based results.
     ///
     /// - Parameters:
@@ -49,11 +46,10 @@ public class MockShell {
     ///   - shouldThrowError: If true, all commands will throw `ShellError.failed`.
     ///                      If false, commands return results or empty string. Defaults to false.
     public init(results: [String] = [], shouldThrowError: Bool = false) {
-        self.results = results
-        self.resultMap = [:]
+        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: false))
         self.shouldThrowError = shouldThrowError
     }
-    
+
     /// Creates a new MockShell instance with dictionary-based results.
     ///
     /// - Parameters:
@@ -62,8 +58,8 @@ public class MockShell {
     ///   - shouldThrowError: If true, all commands will throw `ShellError.failed`.
     ///                      If false, commands return mapped results or empty string. Defaults to false.
     public init(resultMap: [String: String], shouldThrowError: Bool = false) {
-        self.results = []
-        self.resultMap = resultMap
+        let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
+        self.strategy = .commandMap(commands)
         self.shouldThrowError = shouldThrowError
     }
 }
@@ -85,12 +81,12 @@ extension MockShell: Shell {
     public func run(_ program: String, args: [String]) throws -> String {
         let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
         executedCommands.append(command)
-        
+
         if shouldThrowError {
             throw ShellError.failed(program: program, code: 1, output: "Mock error")
         }
-        
-        return getResult(for: command)
+
+        return try getResult(for: command)
     }
     
     /// Simulates executing a bash command string.
@@ -104,35 +100,46 @@ extension MockShell: Shell {
     @discardableResult
     public func bash(_ command: String) throws -> String {
         executedCommands.append(command)
-        
+
         if shouldThrowError {
             throw ShellError.failed(program: "/bin/bash", code: 1, output: "Mock error")
         }
-        
-        return getResult(for: command)
+
+        return try getResult(for: command)
     }
     
-    /// Gets the result for a command, prioritizing result map over results array.
+    /// Gets the result for a command based on the current strategy.
     ///
     /// - Parameter command: The command to get a result for.
-    /// - Returns: The mapped result, next array result, or empty string.
-    private func getResult(for command: String) -> String {
-        // First check if we have a mapped result for this specific command
-        if let mappedResult = resultMap[command] {
-            return mappedResult
-        }
-        
-        // If no mapped result and we have array results, use the next one
-        if !results.isEmpty {
-            return results.removeFirst()
-        }
-        
-        // No result found - log the unmapped command and return empty string
-        if !resultMap.isEmpty {
+    /// - Returns: The result for the command.
+    /// - Throws: ShellError if the strategy dictates an error should be thrown.
+    private func getResult(for command: String) throws -> String {
+        switch strategy {
+        case .arrayResults(var config):
+            if !config.results.isEmpty {
+                let result = config.results.removeFirst()
+                strategy = .arrayResults(config) // Update the strategy with modified config
+                return result
+            }
+            if config.shouldThrowErrorOnFinal {
+                throw ShellError.failed(program: "/bin/bash", code: 1, output: "Mock error on final command")
+            }
+            return ""
+
+        case .commandMap(let commands):
+            if let matchingCommand = commands.first(where: { $0.command == command }) {
+                switch matchingCommand.result {
+                case .success(let output):
+                    return output
+                case .failure(let error):
+                    throw error
+                }
+            }
+
+            // No result found - log the unmapped command and return empty string
             print("[MockShell] No result mapped for command: '\(command)'")
+            return ""
         }
-        
-        return ""
     }
 }
 
@@ -144,19 +151,18 @@ public extension MockShell {
     ///
     /// - Parameter results: New results queue to use. Defaults to empty array.
     func reset(results: [String] = []) {
-        self.results = results
-        self.resultMap = [:]
+        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: false))
         self.executedCommands = []
     }
-    
+
     /// Resets the mock shell state for reuse between tests with dictionary results.
     ///
     /// Clears all executed commands and sets new result mappings.
     ///
     /// - Parameter resultMap: New result mappings to use.
     func reset(resultMap: [String: String]) {
-        self.results = []
-        self.resultMap = resultMap
+        let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
+        self.strategy = .commandMap(commands)
         self.executedCommands = []
     }
     
@@ -194,5 +200,33 @@ public extension MockShell {
     /// actually don't execute any commands.
     var wasUnused: Bool {
         executedCommands.isEmpty
+    }
+}
+
+
+// MARK: - Dependencies
+private extension MockShell {
+    /// Represents the result of a mock command execution.
+    enum MockResult {
+        case success(String)
+        case failure(ShellError)
+    }
+
+    /// Represents a specific mock command with its expected result.
+    struct MockCommand {
+        let command: String
+        let result: MockResult
+    }
+
+    /// Configuration for array-based results.
+    struct ArrayResultsConfig {
+        var results: [String]
+        let shouldThrowErrorOnFinal: Bool
+    }
+
+    /// Internal enum to handle different result strategies.
+    enum ResultStrategy {
+        case arrayResults(ArrayResultsConfig)
+        case commandMap([MockCommand])
     }
 }
