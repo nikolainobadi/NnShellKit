@@ -13,8 +13,15 @@ import Foundation
 /// from Swift code. It captures both stdout and stderr output and throws errors
 /// for non-zero exit codes.
 public struct NnShell: Shell {
+    /// Timeout in seconds for executed processes.
+    /// If nil, waits indefinitely.
+    public var timeout: TimeInterval?
+    
     /// Creates a new instance of NnShell.
-    public init() {}
+    /// - Parameter timeout: Optional timeout in seconds (default: nil = no timeout).
+    public init(timeout: TimeInterval? = nil) {
+        self.timeout = timeout
+    }
     
     /// Executes a bash command string.
     ///
@@ -88,13 +95,48 @@ public struct NnShell: Shell {
         p.standardOutput = pipe
         p.standardError = pipe
 
-        try p.run()
-        p.waitUntilExit()
+        let reader = pipe.fileHandleForReading
+        var data = Data()
+        let group = DispatchGroup()
+        group.enter()
 
-        let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        guard p.terminationStatus == 0 else {
+        let readQueue = DispatchQueue(label: "nnshell.read")
+        readQueue.async {
+            while true {
+                let chunk = reader.availableData
+                if chunk.isEmpty { break }
+                data.append(chunk)
+            }
+            group.leave()
+        }
+
+        let termSemaphore = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in termSemaphore.signal() }
+
+        try p.run()
+
+        if let t = timeout {
+            let result = termSemaphore.wait(timeout: .now() + t)
+            if result == .timedOut {
+                p.terminate()
+                if p.isRunning {
+                    _ = kill(p.processIdentifier, SIGKILL)
+                }
+                _ = group.wait(timeout: .now() + 1)
+                let output = String(decoding: data, as: UTF8.self)
+                throw ShellError.failed(program: program, code: 124, output: output)
+            }
+        } else {
+            p.waitUntilExit()
+        }
+
+        group.wait()
+        let output = String(decoding: data, as: UTF8.self)
+
+        guard p.terminationStatus == 0, p.terminationReason == .exit else {
             throw ShellError.failed(program: program, code: p.terminationStatus, output: output)
         }
+
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

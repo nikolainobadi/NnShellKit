@@ -148,4 +148,78 @@ struct NnShellTests {
         let output = try shell.bash("which bash")
         #expect(output == "/bin/bash")
     }
+    
+    // MARK: - Asynchronous Output Reading Tests
+    
+    @Test("Large output is not truncated")
+    func largeOutputIsNotTruncated() throws {
+        // Generate a large output to test async reading prevents truncation
+        let expectedLines = 1000
+        let command = "for i in {1..\(expectedLines)}; do echo \"Line $i\"; done"
+        let output = try shell.bash(command)
+        
+        let lines = output.components(separatedBy: .newlines)
+        #expect(lines.count == expectedLines)
+        #expect(lines.first == "Line 1")
+        #expect(lines.last == "Line \(expectedLines)")
+    }
+    
+    @Test("Rapid output chunks are captured completely")
+    func rapidOutputChunksAreCapturedCompletely() throws {
+        // Test that rapid output generation doesn't cause truncation
+        let command = "for i in {1..100}; do echo -n \"Chunk$i \"; done; echo"
+        let output = try shell.bash(command)
+        
+        // Verify all chunks are present
+        for i in 1...100 {
+            #expect(output.contains("Chunk\(i)"))
+        }
+        
+        // Count chunks to ensure none are missing
+        let chunkCount = output.components(separatedBy: "Chunk").count - 1
+        #expect(chunkCount == 100)
+    }
+    
+    @Test("Mixed stdout and stderr are captured together")
+    func mixedStdoutAndStderrAreCapturedTogether() throws {
+        // Test that both stdout and stderr are captured when interleaved
+        let command = """
+        echo "stdout line 1"; \
+        echo "stderr line 1" >&2; \
+        echo "stdout line 2"; \
+        echo "stderr line 2" >&2
+        """
+        
+        let output = try shell.bash(command)
+        
+        #expect(output.contains("stdout line 1"))
+        #expect(output.contains("stderr line 1"))
+        #expect(output.contains("stdout line 2"))
+        #expect(output.contains("stderr line 2"))
+    }
+    
+    @Test("Binary-like output is handled correctly")
+    func binaryLikeOutputIsHandledCorrectly() throws {
+        // Test output with various characters including nulls and control chars
+        let command = "printf 'Hello\\x00World\\x01\\x02\\x03\\nEnd'"
+        let output = try shell.bash(command)
+        
+        #expect(output.contains("Hello"))
+        #expect(output.contains("World"))
+        #expect(output.contains("End"))
+    }
+    
+    @Test("Long running command with streaming output")
+    func longRunningCommandWithStreamingOutput() throws {
+        // Test a command that produces output over time
+        let command = "for i in {1..10}; do echo \"Output $i\"; sleep 0.01; done"
+        let output = try shell.bash(command)
+        
+        let lines = output.components(separatedBy: .newlines)
+        #expect(lines.count == 10)
+        
+        for i in 1...10 {
+            #expect(lines[i-1] == "Output \(i)")
+        }
+    }
 }
