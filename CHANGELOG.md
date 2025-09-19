@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-09-19
+
+### Added
+- Timeout support for NnShell to prevent command hangs
+- Command-specific result mapping for MockShell using new MockCommand type
+- GitHub Actions CI workflow for automated testing
+
+### Changed
+- **BREAKING**: MockShell initializer parameter renamed from `shouldThrowError` to `shouldThrowErrorOnFinal` with different semantics
+- MockShell refactored with strategy pattern for more flexible result handling
+
+### Fixed
+- Shell output truncation issue by reading process output asynchronously
+
 ## [1.1.0] - 2025-08-21
 
 ### Changed
