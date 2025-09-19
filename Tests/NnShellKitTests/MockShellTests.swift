@@ -311,8 +311,143 @@ struct MockShellTests {
     func resetDictionaryClearsArray() throws {
         let mock = MockShell(results: ["array result"])
         mock.reset(commands: [MockCommand(command: "test", output: "dictionary result")])
-        
+
         #expect(try mock.bash("test") == "dictionary result")
         #expect(try mock.bash("unmapped") == "")
+    }
+
+    // MARK: - Error Testing for New Features
+
+    @Test("MockCommand with error result throws correctly")
+    func mockCommandWithErrorResult() throws {
+        let expectedError = ShellError.failed(program: "/bin/test", code: 42, output: "Custom error message")
+        let commands = [
+            MockCommand(command: "success", output: "ok"),
+            MockCommand(command: "failure", error: expectedError)
+        ]
+        let mock = MockShell(commands: commands)
+
+        // Success case should work normally
+        #expect(try mock.bash("success") == "ok")
+
+        // Error case should throw the specified error
+        do {
+            try mock.bash("failure")
+            Issue.record("Expected error to be thrown")
+        } catch let error as ShellError {
+            if case .failed(let program, let code, let output) = error {
+                #expect(program == "/bin/test")
+                #expect(code == 42)
+                #expect(output == "Custom error message")
+            } else {
+                Issue.record("Expected ShellError.failed case")
+            }
+        }
+
+        #expect(mock.executedCommands.count == 2)
+        #expect(mock.executedCommands[0] == "success")
+        #expect(mock.executedCommands[1] == "failure")
+    }
+
+    @Test("Array results with shouldThrowErrorOnFinal true")
+    func arrayResultsThrowErrorOnFinal() throws {
+        let mock = MockShell(results: ["first", "second"], shouldThrowErrorOnFinal: true)
+
+        // First two commands should return results
+        #expect(try mock.bash("cmd1") == "first")
+        #expect(try mock.bash("cmd2") == "second")
+
+        // Third command should throw error since results are exhausted
+        do {
+            try mock.bash("cmd3")
+            Issue.record("Expected error to be thrown on final command")
+        } catch let error as ShellError {
+            if case .failed(let program, let code, let output) = error {
+                #expect(program == "/bin/bash")
+                #expect(code == 1)
+                #expect(output == "Mock error on final command")
+            } else {
+                Issue.record("Expected ShellError.failed case")
+            }
+        }
+
+        #expect(mock.executedCommands.count == 3)
+    }
+
+    @Test("Array results with shouldThrowErrorOnFinal false")
+    func arrayResultsReturnEmptyOnFinal() throws {
+        let mock = MockShell(results: ["only"], shouldThrowErrorOnFinal: false)
+
+        // First command should return result
+        #expect(try mock.bash("cmd1") == "only")
+
+        // Subsequent commands should return empty string
+        #expect(try mock.bash("cmd2") == "")
+        #expect(try mock.bash("cmd3") == "")
+
+        #expect(mock.executedCommands.count == 3)
+    }
+
+    @Test("Mixed success and error commands in array")
+    func mixedSuccessAndErrorCommands() throws {
+        let error1 = ShellError.failed(program: "/usr/bin/failing", code: 1, output: "Error 1")
+        let error2 = ShellError.failed(program: "/bin/bash", code: 2, output: "Error 2")
+
+        let commands = [
+            MockCommand(command: "success1", output: "result1"),
+            MockCommand(command: "error1", error: error1),
+            MockCommand(command: "success2", output: "result2"),
+            MockCommand(command: "error2", error: error2)
+        ]
+        let mock = MockShell(commands: commands)
+
+        // Test success cases
+        #expect(try mock.bash("success1") == "result1")
+        #expect(try mock.bash("success2") == "result2")
+
+        // Test error cases and verify error details
+        do {
+            try mock.bash("error1")
+            Issue.record("Expected error1 to throw")
+        } catch let error as ShellError {
+            if case .failed(let program, let code, let output) = error {
+                #expect(program == "/usr/bin/failing")
+                #expect(code == 1)
+                #expect(output == "Error 1")
+            }
+        }
+
+        do {
+            try mock.bash("error2")
+            Issue.record("Expected error2 to throw")
+        } catch let error as ShellError {
+            if case .failed(let program, let code, let output) = error {
+                #expect(program == "/bin/bash")
+                #expect(code == 2)
+                #expect(output == "Error 2")
+            }
+        }
+
+        #expect(mock.executedCommands.count == 4)
+    }
+
+    @Test("Reset with commands containing errors")
+    func resetWithCommandsContainingErrors() throws {
+        let mock = MockShell(results: ["initial"])
+
+        let error = ShellError.failed(program: "/bin/test", code: 1, output: "Reset error")
+        let newCommands = [
+            MockCommand(command: "success", output: "new success"),
+            MockCommand(command: "failure", error: error)
+        ]
+        mock.reset(commands: newCommands)
+
+        #expect(mock.executedCommands.count == 0) // Reset clears commands
+
+        #expect(try mock.bash("success") == "new success")
+
+        #expect(throws: ShellError.self) {
+            try mock.bash("failure")
+        }
     }
 }
