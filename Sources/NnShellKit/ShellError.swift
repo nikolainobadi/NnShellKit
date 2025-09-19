@@ -14,4 +14,7 @@ public enum ShellError: Error {
     ///   - code: The exit code returned by the command.
     ///   - output: The combined stdout and stderr output from the failed command.
     case failed(program: String, code: Int32, output: String)
+
+    /// A generic error case for testing or simple error scenarios.
+    case generic
 }
