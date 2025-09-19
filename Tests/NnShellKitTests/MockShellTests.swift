@@ -311,8 +311,7 @@ struct MockShellTests {
     
     @Test("Dictionary-based error simulation")
     func dictionaryBasedErrorSimulation() throws {
-        let resultMap = ["test": "result"]
-        let mock = MockShell(resultMap: resultMap, shouldThrowError: true)
+        let mock = MockShell(shouldThrowError: true)
         
         do {
             try mock.bash("test")

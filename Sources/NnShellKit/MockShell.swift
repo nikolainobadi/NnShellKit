@@ -43,23 +43,29 @@ public class MockShell {
     /// - Parameters:
     ///   - results: An array of strings to return from command executions.
     ///             Results are consumed in order. Defaults to empty array.
-    ///   - shouldThrowError: If true, all commands will throw `ShellError.failed`.
-    ///                      If false, commands return results or empty string. Defaults to false.
-    public init(results: [String] = [], shouldThrowError: Bool = false) {
-        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: false))
-        self.shouldThrowError = shouldThrowError
+    ///   - shouldThrowErrorOnFinal: If true, throws `ShellError.failed` when the results array is exhausted.
+    ///                             If false, returns empty string when no more results. Defaults to false.
+    public init(results: [String] = [], shouldThrowErrorOnFinal: Bool = false) {
+        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal))
+        self.shouldThrowError = false
     }
 
     /// Creates a new MockShell instance with dictionary-based results.
     ///
-    /// - Parameters:
-    ///   - resultMap: A dictionary mapping commands to their expected results.
-    ///               Commands not found in the map will return empty string and be logged.
-    ///   - shouldThrowError: If true, all commands will throw `ShellError.failed`.
-    ///                      If false, commands return mapped results or empty string. Defaults to false.
-    public init(resultMap: [String: String], shouldThrowError: Bool = false) {
+    /// - Parameter resultMap: A dictionary mapping commands to their expected results.
+    ///                       Commands not found in the map will return empty string and be logged.
+    public init(resultMap: [String: String]) {
         let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
         self.strategy = .commandMap(commands)
+        self.shouldThrowError = false
+    }
+
+    /// Creates a new MockShell instance that always throws errors.
+    ///
+    /// - Parameter shouldThrowError: If true, all commands will throw `ShellError.failed`.
+    ///                              If false, behaves like empty results array. Defaults to false.
+    public init(shouldThrowError: Bool = false) {
+        self.strategy = .arrayResults(ArrayResultsConfig(results: [], shouldThrowErrorOnFinal: false))
         self.shouldThrowError = shouldThrowError
     }
 }
