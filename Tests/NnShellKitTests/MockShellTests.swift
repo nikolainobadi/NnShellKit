@@ -208,20 +208,23 @@ struct MockShellTests {
     
     @Test("Dictionary-based initialization")
     func dictionaryBasedInitialization() {
-        let resultMap = ["git status": "main\nfeature", "pwd": "/home/user"]
-        let mock = MockShell(resultMap: resultMap)
+        let commands = [
+            MockCommand(command: "git status", output: "main\nfeature"),
+            MockCommand(command: "pwd", output: "/home/user")
+        ]
+        let mock = MockShell(commands: commands)
         #expect(mock.executedCommands.count == 0)
         #expect(mock.wasUnused == true)
     }
     
     @Test("Dictionary-based bash commands")
     func dictionaryBasedBashCommands() throws {
-        let resultMap = [
-            "git status": "main\nfeature",
-            "pwd": "/home/user",
-            "echo hello": "hello"
+        let commands = [
+            MockCommand(command: "git status", output: "main\nfeature"),
+            MockCommand(command: "pwd", output: "/home/user"),
+            MockCommand(command: "echo hello", output: "hello")
         ]
-        let mock = MockShell(resultMap: resultMap)
+        let mock = MockShell(commands: commands)
         
         #expect(try mock.bash("git status") == "main\nfeature")
         #expect(try mock.bash("pwd") == "/home/user")
@@ -235,11 +238,11 @@ struct MockShellTests {
     
     @Test("Dictionary-based run commands")
     func dictionaryBasedRunCommands() throws {
-        let resultMap = [
-            "/bin/ls -la": "total 8",
-            "/usr/bin/git status": "clean working directory"
+        let commands = [
+            MockCommand(command: "/bin/ls -la", output: "total 8"),
+            MockCommand(command: "/usr/bin/git status", output: "clean working directory")
         ]
-        let mock = MockShell(resultMap: resultMap)
+        let mock = MockShell(commands: commands)
         
         #expect(try mock.run("/bin/ls", args: ["-la"]) == "total 8")
         #expect(try mock.run("/usr/bin/git", args: ["status"]) == "clean working directory")
@@ -251,8 +254,8 @@ struct MockShellTests {
     
     @Test("Dictionary-based unmapped commands return empty string")
     func dictionaryBasedUnmappedCommands() throws {
-        let resultMap = ["known command": "result"]
-        let mock = MockShell(resultMap: resultMap)
+        let commands = [MockCommand(command: "known command", output: "result")]
+        let mock = MockShell(commands: commands)
         
         #expect(try mock.bash("known command") == "result")
         #expect(try mock.bash("unknown command") == "")
@@ -265,12 +268,12 @@ struct MockShellTests {
     @Test("Dictionary-based mixed with array fallback")
     func dictionaryBasedMixedWithArrayFallback() throws {
         // Initialize with both dictionary and array results
-        var mock = MockShell(resultMap: ["mapped": "from dictionary"])
+        var mock = MockShell(commands: [MockCommand(command: "mapped", output: "from dictionary")])
         mock.reset(results: ["from array"])
-        
+
         // Dictionary result should take precedence when both are available
         mock = MockShell(results: ["from array"])
-        mock.reset(resultMap: ["mapped": "from dictionary"])
+        mock.reset(commands: [MockCommand(command: "mapped", output: "from dictionary")])
         
         #expect(try mock.bash("mapped") == "from dictionary")
         #expect(try mock.bash("unmapped") == "")
@@ -282,9 +285,12 @@ struct MockShellTests {
     func resetWithDictionaryResults() throws {
         let mock = MockShell()
         try mock.bash("initial command")
-        
-        let newResultMap = ["test": "new result", "other": "other result"]
-        mock.reset(resultMap: newResultMap)
+
+        let newCommands = [
+            MockCommand(command: "test", output: "new result"),
+            MockCommand(command: "other", output: "other result")
+        ]
+        mock.reset(commands: newCommands)
         
         #expect(mock.executedCommands.count == 0)
         #expect(try mock.bash("test") == "new result")
@@ -294,7 +300,7 @@ struct MockShellTests {
     
     @Test("Reset array clears dictionary")
     func resetArrayClearsDictionary() throws {
-        let mock = MockShell(resultMap: ["test": "dictionary result"])
+        let mock = MockShell(commands: [MockCommand(command: "test", output: "dictionary result")])
         mock.reset(results: ["array result"])
         
         #expect(try mock.bash("test") == "array result")
@@ -304,7 +310,7 @@ struct MockShellTests {
     @Test("Reset dictionary clears array")
     func resetDictionaryClearsArray() throws {
         let mock = MockShell(results: ["array result"])
-        mock.reset(resultMap: ["test": "dictionary result"])
+        mock.reset(commands: [MockCommand(command: "test", output: "dictionary result")])
         
         #expect(try mock.bash("test") == "dictionary result")
         #expect(try mock.bash("unmapped") == "")

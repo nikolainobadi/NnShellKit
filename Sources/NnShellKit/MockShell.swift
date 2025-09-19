@@ -46,12 +46,11 @@ public class MockShell {
         self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal))
     }
 
-    /// Creates a new MockShell instance with dictionary-based results.
+    /// Creates a new MockShell instance with command-based results.
     ///
-    /// - Parameter resultMap: A dictionary mapping commands to their expected results.
-    ///                       Commands not found in the map will return empty string and be logged.
-    public init(resultMap: [String: String]) {
-        let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
+    /// - Parameter commands: An array of MockCommand instances defining specific command behaviors.
+    ///                      Commands not found in the array will return empty string and be logged.
+    public init(commands: [MockCommand]) {
         self.strategy = .commandMap(commands)
     }
 }
@@ -114,13 +113,12 @@ public extension MockShell {
         self.executedCommands = []
     }
 
-    /// Resets the mock shell state for reuse between tests with dictionary results.
+    /// Resets the mock shell state for reuse between tests with command results.
     ///
-    /// Clears all executed commands and sets new result mappings.
+    /// Clears all executed commands and sets new command mappings.
     ///
-    /// - Parameter resultMap: New result mappings to use.
-    func reset(resultMap: [String: String]) {
-        let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
+    /// - Parameter commands: New command mappings to use.
+    func reset(commands: [MockCommand]) {
         self.strategy = .commandMap(commands)
         self.executedCommands = []
     }
@@ -200,18 +198,6 @@ private extension MockShell {
 
 // MARK: - Dependencies
 private extension MockShell {
-    /// Represents the result of a mock command execution.
-    enum MockResult {
-        case success(String)
-        case failure(ShellError)
-    }
-
-    /// Represents a specific mock command with its expected result.
-    struct MockCommand {
-        let command: String
-        let result: MockResult
-    }
-
     /// Configuration for array-based results.
     struct ArrayResultsConfig {
         var results: [String]
