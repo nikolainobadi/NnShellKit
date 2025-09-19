@@ -93,54 +93,7 @@ struct MockShellTests {
         #expect(try mock.run("/bin/test2", args: []) == "output2")
     }
     
-    // MARK: - Error Simulation Tests
-    
-    @Test("Error simulation")
-    func errorSimulation() throws {
-        let mock = MockShell(shouldThrowError: true)
-        
-        do {
-            try mock.bash("any command")
-            Issue.record("Expected command to throw")
-        } catch let error as ShellError {
-            if case .failed(let program, let code, let output) = error {
-                #expect(program == "/bin/bash")
-                #expect(code == 1)
-                #expect(output == "Mock error")
-            } else {
-                Issue.record("Unexpected ShellError case")
-            }
-        }
-    }
-    
-    @Test("Error simulation with run")
-    func errorSimulationWithRun() throws {
-        let mock = MockShell(shouldThrowError: true)
-        
-        do {
-            try mock.run("/bin/test", args: ["arg"])
-            Issue.record("Expected command to throw")
-        } catch let error as ShellError {
-            if case .failed(let program, let code, let output) = error {
-                #expect(program == "/bin/test")
-                #expect(code == 1)
-                #expect(output == "Mock error")
-            } else {
-                Issue.record("Unexpected ShellError case")
-            }
-        }
-    }
-    
-    @Test("Error simulation still records commands")
-    func errorSimulationStillRecordsCommands() {
-        let mock = MockShell(shouldThrowError: true)
-        
-        #expect(throws: ShellError.self) {
-            try mock.bash("command that fails")
-        }
-        #expect(mock.executedCommands.count == 1)
-        #expect(mock.executedCommands[0] == "command that fails")
-    }
+    // MARK: - Error Simulation Test
     
     // MARK: - Reset Functionality Tests
     
@@ -307,27 +260,6 @@ struct MockShellTests {
         #expect(mock.executedCommands.count == 2)
         #expect(mock.executedCommands[0] == "known command")
         #expect(mock.executedCommands[1] == "unknown command")
-    }
-    
-    @Test("Dictionary-based error simulation")
-    func dictionaryBasedErrorSimulation() throws {
-        let mock = MockShell(shouldThrowError: true)
-        
-        do {
-            try mock.bash("test")
-            Issue.record("Expected command to throw")
-        } catch let error as ShellError {
-            if case .failed(let program, let code, let output) = error {
-                #expect(program == "/bin/bash")
-                #expect(code == 1)
-                #expect(output == "Mock error")
-            } else {
-                Issue.record("Unexpected ShellError case")
-            }
-        }
-        
-        #expect(mock.executedCommands.count == 1)
-        #expect(mock.executedCommands[0] == "test")
     }
     
     @Test("Dictionary-based mixed with array fallback")

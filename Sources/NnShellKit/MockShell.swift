@@ -59,15 +59,6 @@ public class MockShell {
         self.strategy = .commandMap(commands)
         self.shouldThrowError = false
     }
-
-    /// Creates a new MockShell instance that always throws errors.
-    ///
-    /// - Parameter shouldThrowError: If true, all commands will throw `ShellError.failed`.
-    ///                              If false, behaves like empty results array. Defaults to false.
-    public init(shouldThrowError: Bool = false) {
-        self.strategy = .arrayResults(ArrayResultsConfig(results: [], shouldThrowErrorOnFinal: false))
-        self.shouldThrowError = shouldThrowError
-    }
 }
 
 
