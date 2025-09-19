@@ -28,9 +28,6 @@ public class MockShell {
     /// The strategy used for determining command results.
     private var strategy: ResultStrategy
 
-    /// Determines whether all commands should throw errors (for backwards compatibility).
-    private let shouldThrowError: Bool
-
     /// An array of all commands that have been executed, in order.
     /// For `run()` calls, this contains the program and args joined with spaces.
     /// For `bash()` calls, this contains the exact command string.
@@ -47,7 +44,6 @@ public class MockShell {
     ///                             If false, returns empty string when no more results. Defaults to false.
     public init(results: [String] = [], shouldThrowErrorOnFinal: Bool = false) {
         self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal))
-        self.shouldThrowError = false
     }
 
     /// Creates a new MockShell instance with dictionary-based results.
@@ -57,7 +53,6 @@ public class MockShell {
     public init(resultMap: [String: String]) {
         let commands = resultMap.map { MockCommand(command: $0.key, result: .success($0.value)) }
         self.strategy = .commandMap(commands)
-        self.shouldThrowError = false
     }
 }
 
@@ -73,17 +68,13 @@ extension MockShell: Shell {
     ///   - program: The absolute path to the program to execute.
     ///   - args: An array of arguments to pass to the program.
     /// - Returns: The next result from the results queue, mapped result, or empty string.
-    /// - Throws: `ShellError.failed` if `shouldThrowError` is true.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
     @discardableResult
     public func run(_ program: String, args: [String]) throws -> String {
         let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
         executedCommands.append(command)
 
-        if shouldThrowError {
-            throw ShellError.failed(program: program, code: 1, output: "Mock error")
-        }
-
-        return try getResult(for: command)
+        return try getResult(for: command, program: program)
     }
     
     /// Simulates executing a bash command string.
@@ -93,24 +84,22 @@ extension MockShell: Shell {
     ///
     /// - Parameter command: The bash command string to execute.
     /// - Returns: The next result from the results queue, mapped result, or empty string.
-    /// - Throws: `ShellError.failed` if `shouldThrowError` is true.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
     @discardableResult
     public func bash(_ command: String) throws -> String {
         executedCommands.append(command)
 
-        if shouldThrowError {
-            throw ShellError.failed(program: "/bin/bash", code: 1, output: "Mock error")
-        }
-
-        return try getResult(for: command)
+        return try getResult(for: command, program: "/bin/bash")
     }
     
     /// Gets the result for a command based on the current strategy.
     ///
-    /// - Parameter command: The command to get a result for.
+    /// - Parameters:
+    ///   - command: The command to get a result for.
+    ///   - program: The program being executed (for error reporting).
     /// - Returns: The result for the command.
     /// - Throws: ShellError if the strategy dictates an error should be thrown.
-    private func getResult(for command: String) throws -> String {
+    private func getResult(for command: String, program: String) throws -> String {
         switch strategy {
         case .arrayResults(var config):
             if !config.results.isEmpty {
@@ -119,7 +108,7 @@ extension MockShell: Shell {
                 return result
             }
             if config.shouldThrowErrorOnFinal {
-                throw ShellError.failed(program: "/bin/bash", code: 1, output: "Mock error on final command")
+                throw ShellError.failed(program: program, code: 1, output: "Mock error on final command")
             }
             return ""
 
@@ -136,6 +125,9 @@ extension MockShell: Shell {
             // No result found - log the unmapped command and return empty string
             print("[MockShell] No result mapped for command: '\(command)'")
             return ""
+
+        case .alwaysThrowError:
+            throw ShellError.failed(program: program, code: 1, output: "Mock error")
         }
     }
 }
@@ -225,5 +217,6 @@ private extension MockShell {
     enum ResultStrategy {
         case arrayResults(ArrayResultsConfig)
         case commandMap([MockCommand])
+        case alwaysThrowError
     }
 }
