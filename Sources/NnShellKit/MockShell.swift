@@ -11,6 +11,37 @@
 /// predefined results or throw errors. It's designed for unit testing code
 /// that depends on shell operations without actually executing commands.
 ///
+/// - Important: This class is deprecated. Use `ConfigurableMockShell` instead, which provides
+///   more explicit and flexible configuration through the `MockCommand` struct.
+///
+/// Migration guide:
+/// ```swift
+/// // Old (array-based):
+/// let mock = MockShell(results: ["result1", "result2"])
+///
+/// // New (ordered mode):
+/// let mock = ConfigurableMockShell(commands: [
+///     MockCommand(command: "cmd1", result: "result1"),
+///     MockCommand(command: "cmd2", result: "result2")
+/// ])
+///
+/// // Old (dictionary-based):
+/// let mock = MockShell(resultMap: ["git status": "clean"])
+///
+/// // New (mapped mode):
+/// let mock = ConfigurableMockShell(commands: [
+///     MockCommand(command: "git status", result: "clean")
+/// ], mode: .mapped)
+///
+/// // Old (error for all):
+/// let mock = MockShell(shouldThrowError: true)
+///
+/// // New (specific errors):
+/// let mock = ConfigurableMockShell(commands: [
+///     MockCommand(command: "fail", failWithCode: 1)
+/// ])
+/// ```
+///
 /// Example usage with array results:
 /// ```swift
 /// let mock = MockShell(results: ["branch1", "branch2"], shouldThrowError: false)
@@ -24,6 +55,7 @@
 /// let output = try mock.bash("git branch")  // Returns "main\nfeature"
 /// assert(mock.executedCommands.first == "git branch")
 /// ```
+@available(*, deprecated, message: "Use ConfigurableMockShell instead for more explicit and flexible mock configuration")
 public class MockShell {
     /// Determines whether all commands should throw errors.
     private let shouldThrowError: Bool
