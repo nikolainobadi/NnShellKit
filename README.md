@@ -15,16 +15,18 @@ The package offers both direct program execution and full bash command support w
 
 - **Two execution modes**: Direct program execution and bash command execution
 - **Comprehensive error handling**: Captures exit codes and combined stdout/stderr
-- **Built-in testing support**: MockShell for unit testing without actual command execution
+- **Timeout support**: Prevent commands from hanging with configurable timeouts
+- **Built-in testing support**: MockShell with flexible result strategies for unit testing
 - **Protocol-oriented design**: Easy dependency injection and testing
 - **@discardableResult**: Use with or without capturing output
+- **Async output reading**: Prevents truncation of large command outputs
 
 ## Installation
 
 Add the package to your Swift project using Swift Package Manager:
 
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "1.0.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.0.0")
 ```
 
 ## Usage
@@ -35,6 +37,9 @@ Add the package to your Swift project using Swift Package Manager:
 import NnShellKit
 
 let shell = NnShell()
+
+// Or with timeout (in seconds)
+let shellWithTimeout = NnShell(timeout: 30)
 
 // Execute bash commands with full shell features
 let output = try shell.bash("git status | grep modified")
@@ -125,15 +130,16 @@ let commit = try mock.bash("git rev-parse HEAD")  // Returns "commit abc123"
 assert(mock.executedCommands == ["git branch", "git rev-parse HEAD"])
 ```
 
-### Advanced Mock Features
+### Advanced Mock Features (v2.0.0)
 
 ```swift
-// Error simulation
-let errorMock = MockShell(shouldThrowError: true)
-// All commands will throw ShellError.failed
+// Error simulation when results exhausted
+let errorMock = MockShell(results: ["output1"], shouldThrowErrorOnFinal: true)
+try errorMock.bash("first command")  // Returns "output1"
+// Next command will throw ShellError.failed
 
-// Command verification
-mock.reset()
+// Command verification helpers
+let mock = MockShell(results: ["output1", "output2"])
 try mock.bash("git add .")
 try mock.bash("git commit -m 'test'")
 
@@ -142,13 +148,69 @@ assert(mock.commandCount(containing: "git") == 2)
 assert(mock.verifyCommand(at: 0, equals: "git add ."))
 ```
 
+### MockCommand for Precise Test Control (v2.0.0)
+
+MockCommand allows you to define specific behaviors for individual commands, making your tests more predictable and easier to understand:
+
+```swift
+// Basic MockCommand usage
+let mock = MockShell(commands: [
+    MockCommand(command: "git status", result: .success("clean")),
+    MockCommand(command: "git push", result: .failure(code: 1, output: "error"))
+])
+
+try mock.bash("git status")  // Returns "clean"
+// try mock.bash("git push")  // Would throw ShellError.failed
+
+// Testing a deployment script
+let deployMock = MockShell(commands: [
+    MockCommand(command: "npm test", result: .success("All tests passed")),
+    MockCommand(command: "npm run build", result: .success("Build complete")),
+    MockCommand(command: "aws s3 sync dist/ s3://bucket", result: .success("Upload complete")),
+    MockCommand(command: "aws cloudfront create-invalidation --distribution-id ABC123 --paths '/*'",
+                result: .success("Invalidation created"))
+])
+
+// Your deployment function
+func deploy(using shell: Shell) throws {
+    print(try shell.bash("npm test"))
+    print(try shell.bash("npm run build"))
+    print(try shell.bash("aws s3 sync dist/ s3://bucket"))
+    print(try shell.bash("aws cloudfront create-invalidation --distribution-id ABC123 --paths '/*'"))
+}
+
+try deploy(using: deployMock)
+assert(deployMock.executedCommands.count == 4)
+
+// Simulating different scenarios
+let failureMock = MockShell(commands: [
+    MockCommand(command: "npm test", result: .failure(code: 1, output: "2 tests failed"))
+])
+
+do {
+    try deploy(using: failureMock)
+} catch {
+    // Handle test failure scenario
+}
+
+// Using run() with MockCommand
+let runMock = MockShell(commands: [
+    MockCommand(command: "/usr/bin/git status", result: .success("On branch main")),
+    MockCommand(command: "/usr/bin/git push origin main", result: .success("Everything up-to-date"))
+])
+
+try runMock.run("/usr/bin/git", args: ["status"])  // Returns "On branch main"
+try runMock.run("/usr/bin/git", args: ["push", "origin", "main"])  // Returns "Everything up-to-date"
+```
+
 ## Architecture
 
 NnShellKit follows a protocol-oriented design:
 
 - **Shell Protocol**: Defines the interface for command execution
-- **NnShell**: Production implementation using Foundation's Process API
-- **MockShell**: Test implementation with command recording and result stubbing
+- **NnShell**: Production implementation using Foundation's Process API with timeout support
+- **MockShell**: Test implementation with flexible result strategies (array-based or command-specific)
+- **MockCommand**: Defines specific command behaviors for precise test control
 - **ShellError**: Structured error type with program, exit code, and output
 
 This design makes it easy to:

@@ -8,7 +8,7 @@ NnShellKit is a lightweight Swift package that provides a simple interface for e
 
 ## Core Architecture
 
-The package follows a protocol-oriented design with three main components:
+The package follows a protocol-oriented design with four main components:
 
 ### Shell Protocol
 The central abstraction that defines two methods:
@@ -16,8 +16,9 @@ The central abstraction that defines two methods:
 - `run(_ program: String, args: [String])` - Executes programs directly without shell interpretation
 
 ### Implementation Types
-- **NnShell** - Production implementation using Foundation's Process API
-- **MockShell** - Test implementation that records commands and returns predefined results
+- **NnShell** - Production implementation using Foundation's Process API with timeout support
+- **MockShell** - Test implementation with flexible result strategies (array-based or command-specific)
+- **MockCommand** - Defines specific command behaviors for precise test control
 
 ### Error Handling
 - **ShellError.failed** - Contains program path, exit code, and combined stdout/stderr output
@@ -48,17 +49,20 @@ Tests use Swift Testing framework (not XCTest) with the following patterns:
 
 ## Testing Strategy
 
-### MockShell Features
+### MockShell Features (v2.0.0)
 The MockShell provides comprehensive testing capabilities:
 - **Command Recording** - All executed commands are stored in `executedCommands` array
-- **Result Queue** - Predefined results returned in FIFO order via `results` parameter
-- **Error Simulation** - Set `shouldThrowError: true` to simulate command failures
+- **Result Strategies**:
+  - Array-based: Predefined results returned in FIFO order via `results` parameter
+  - Command-based: Specific results mapped to commands using `MockCommand` instances
+- **Error Simulation** - Set `shouldThrowErrorOnFinal: true` to simulate failures when results exhausted
 - **Convenience Methods** - `executedCommand(containing:)`, `commandCount(containing:)`, `verifyCommand(at:equals:)`, etc.
 
 ### Test File Organization
-- `NnShellTests.swift` - Tests for the production NnShell implementation
-- `MockShellTests.swift` - Tests for MockShell testing utility
+- `NnShellTests.swift` - Tests for the production NnShell implementation including timeout behavior
+- `MockShellTests.swift` - Tests for MockShell testing utility and result strategies
 - `ShellErrorTests.swift` - Tests for error handling and ShellError enum
+- `MockCommand.swift` - Support type for command-specific test behaviors
 
 ## Code Conventions
 
@@ -70,16 +74,35 @@ All Swift files use "Nikolai Nobadi" in the "Created by" comment header.
 - Combined stdout/stderr output with automatic trimming
 - Shell protocol enables dependency injection for testing
 
-### MockShell Usage Pattern
+### MockShell Usage Patterns (v2.0.0)
+
+#### Array-based results:
 ```swift
 let mock = MockShell(results: ["output1", "output2"])
 try mock.bash("git status")  // Returns "output1"
 assert(mock.executedCommands.first == "git status")
 ```
 
-## Key Implementation Details
+#### Command-specific results:
+```swift
+let mock = MockShell(commands: [
+    MockCommand(command: "git status", result: .success("main branch")),
+    MockCommand(command: "git push", result: .failure(code: 1, output: "error"))
+])
+try mock.bash("git status")  // Returns "main branch"
+```
+
+## Key Implementation Details (v2.0.0)
 
 - `bash()` method delegates to `run("/bin/bash", args: ["-c", command])`
+- NnShell supports configurable timeouts to prevent hanging commands
+- Output is read asynchronously to prevent truncation issues
+- MockShell uses strategy pattern for flexible result handling
 - MockShell handles empty arguments correctly (no trailing space)
 - Error tests should expect `NSError` for missing executables, `ShellError` for command failures
 - Output expectations should account for shell behavior (e.g., echo stripping outer quotes)
+
+## CI/CD
+
+- GitHub Actions workflow runs tests on every push and pull request
+- Tests run on macOS latest with Swift 6.0
