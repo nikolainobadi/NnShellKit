@@ -1,5 +1,6 @@
 # NnShellKit
 
+![Build Status](https://github.com/nikolainobadi/NnShellKit/actions/workflows/ci.yml/badge.svg)
 ![Swift Version](https://badgen.net/badge/swift/5.5%2B/purple)
 ![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
