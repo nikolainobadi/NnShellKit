@@ -90,6 +90,14 @@ extension MockShell: Shell {
         
         return try getResult(for: command, program: "/bin/bash")
     }
+    
+    public func runAndPrint(_ program: String, args: [String]) throws {
+        // TODO: -
+    }
+    
+    public func runAndPrint(bash command: String) throws {
+        // TODO: - 
+    }
 }
 
 
