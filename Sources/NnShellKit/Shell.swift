@@ -27,4 +27,8 @@ public protocol Shell {
     /// - Throws: `ShellError.failed` if the command returns a non-zero exit code.
     @discardableResult
     func run(_ program: String, args: [String]) throws -> String
+    
+    func runAndPrint(_ program: String, args: [String]) throws
+    
+    func runAndPrint(bash command: String) throws
 }
