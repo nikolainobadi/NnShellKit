@@ -9,11 +9,7 @@ import Testing
 import Foundation
 @testable import NnShellKit
 
-struct NnShellTests {}
-
-
-// MARK: - Command Execution
-extension NnShellTests {
+struct NnShellTests {
     @Test("Executes command and returns output")
     func executesCommandAndReturnsOutput() throws {
         let sut = makeSUT()
@@ -227,6 +223,6 @@ extension NnShellTests {
 // MARK: - SUT
 private extension NnShellTests {
     func makeSUT() -> NnShell {
-        return NnShell()
+        return .init()
     }
 }
