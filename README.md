@@ -14,6 +14,7 @@ The package offers both direct program execution and full bash command support w
 ## Features
 
 - **Two execution modes**: Direct program execution and bash command execution
+- **Real-time output streaming**: Stream command output directly to stdout/stderr with `runAndPrint`
 - **Comprehensive error handling**: Captures exit codes and combined stdout/stderr
 - **Timeout support**: Prevent commands from hanging with configurable timeouts
 - **Built-in testing support**: MockShell with flexible result strategies for unit testing
@@ -68,6 +69,29 @@ Use `run()` for direct program execution:
 let output = try shell.run("/bin/echo", args: ["Hello, World!"])
 try shell.run("/usr/bin/git", args: ["status", "--porcelain"])
 ```
+
+### Real-Time Output Streaming
+
+Use `runAndPrint()` when you want to see command output in real-time (doesn't capture/return output):
+
+```swift
+// Stream build output directly to console
+try shell.runAndPrint("/usr/bin/swift", args: ["build", "--verbose"])
+
+// Stream test results as they run
+try shell.runAndPrint("/usr/bin/swift", args: ["test"])
+
+// Stream git operations with progress
+try shell.runAndPrint(bash: "git clone --progress https://github.com/user/repo.git")
+
+// Stream deployment scripts
+try shell.runAndPrint(bash: "npm install && npm run build && npm test")
+```
+
+**When to use `runAndPrint` vs `run`/`bash`:**
+- Use `runAndPrint()` for long-running commands where you want real-time feedback
+- Use `runAndPrint()` for build scripts, tests, or deployments with progress indicators
+- Use `run()`/`bash()` when you need to capture and process the output
 
 ### Xcode Integration
 
@@ -207,7 +231,11 @@ try runMock.run("/usr/bin/git", args: ["push", "origin", "main"])  // Returns "E
 
 NnShellKit follows a protocol-oriented design:
 
-- **Shell Protocol**: Defines the interface for command execution
+- **Shell Protocol**: Defines the interface for command execution with four methods:
+  - `bash(_:)` - Execute bash commands, returns captured output
+  - `run(_:args:)` - Execute programs directly, returns captured output
+  - `runAndPrint(_:args:)` - Execute programs, stream output to stdout/stderr
+  - `runAndPrint(bash:)` - Execute bash commands, stream output to stdout/stderr
 - **NnShell**: Production implementation using Foundation's Process API with timeout support
 - **MockShell**: Test implementation with flexible result strategies (array-based or command-specific)
 - **MockCommand**: Defines specific command behaviors for precise test control

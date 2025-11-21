@@ -16,9 +16,11 @@ NnShellKit is a lightweight Swift package that provides a simple interface for e
 The package follows a protocol-oriented design with four main components:
 
 ### Shell Protocol
-The central abstraction that defines two methods:
-- `bash(_ command: String)` - Executes bash commands with full shell features (pipes, redirects, etc.)
-- `run(_ program: String, args: [String])` - Executes programs directly without shell interpretation
+The central abstraction that defines four methods:
+- `bash(_ command: String)` - Executes bash commands with full shell features (pipes, redirects, etc.), returns captured output
+- `run(_ program: String, args: [String])` - Executes programs directly without shell interpretation, returns captured output
+- `runAndPrint(_ program: String, args: [String])` - Executes programs and streams output directly to stdout/stderr (no capture)
+- `runAndPrint(bash command: String)` - Executes bash commands and streams output directly to stdout/stderr (no capture)
 
 ### Implementation Types
 - **NnShell** - Production implementation using Foundation's Process API with timeout support
@@ -100,8 +102,11 @@ try mock.bash("git status")  // Returns "main branch"
 ## Key Implementation Details (v2.0.0)
 
 - `bash()` method delegates to `run("/bin/bash", args: ["-c", command])`
-- NnShell supports configurable timeouts to prevent hanging commands
+- `runAndPrint(bash:)` method delegates to `runAndPrint("/bin/bash", args: ["-c", command])`
+- NnShell supports configurable timeouts to prevent hanging commands (not applicable to `runAndPrint`)
 - Output is read asynchronously to prevent truncation issues
+- `runAndPrint` methods stream output directly to console using `FileHandle.standardOutput` and `FileHandle.standardError`
+- `runAndPrint` methods wait indefinitely for process completion (no timeout support)
 - MockShell uses strategy pattern for flexible result handling
 - MockShell handles empty arguments correctly (no trailing space)
 - Error tests should expect `NSError` for missing executables, `ShellError` for command failures
