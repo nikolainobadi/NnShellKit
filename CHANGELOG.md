@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-11-21
+
+### Added
+- `runAndPrint(_:args:)` method to Shell protocol for executing programs with real-time output streaming to stdout/stderr
+- `runAndPrint(bash:)` method to Shell protocol for executing bash commands with real-time output streaming to stdout/stderr
+
+### Changed
+- MockShell and MockCommand moved to separate `NnShellTesting` library for cleaner dependency separation
+
 ## [2.0.0] - 2025-09-19
 
 ### Added
