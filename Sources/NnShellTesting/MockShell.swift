@@ -93,12 +93,31 @@ extension MockShell: Shell {
         return try getResult(for: command, program: "/bin/bash")
     }
     
+    /// Simulates executing a program with streaming output.
+    ///
+    /// Records the command in `executedCommands` and consumes the next result
+    /// from the results queue or result map without returning it. Throws errors
+    /// based on the strategy configuration.
+    ///
+    /// - Parameters:
+    ///   - program: The absolute path to the program to execute.
+    ///   - args: An array of arguments to pass to the program.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
     public func runAndPrint(_ program: String, args: [String]) throws {
-        // TODO: -
+        let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
+        executedCommands.append(command)
+
+        _ = try getResult(for: command, program: program)
     }
-    
+
+    /// Simulates executing a bash command with streaming output.
+    ///
+    /// Records the command in `executedCommands` and delegates to `runAndPrint(_:args:)`.
+    ///
+    /// - Parameter command: The bash command string to execute.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
     public func runAndPrint(bash command: String) throws {
-        // TODO: - 
+        try runAndPrint("/bin/bash", args: ["-c", command])
     }
 }
 

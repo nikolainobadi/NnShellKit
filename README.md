@@ -143,6 +143,7 @@ NnShellKit includes MockShell for comprehensive testing without executing real c
 
 ```swift
 import NnShellKit
+import NnShellTesting
 
 let mock = MockShell(results: ["branch1\nbranch2", "commit abc123"])
 
@@ -152,6 +153,10 @@ let commit = try mock.bash("git rev-parse HEAD")  // Returns "commit abc123"
 
 // Verify commands were executed
 assert(mock.executedCommands == ["git branch", "git rev-parse HEAD"])
+
+// MockShell also supports runAndPrint (consumes results without returning)
+try mock.runAndPrint("/usr/bin/swift", args: ["build"])
+try mock.runAndPrint(bash: "npm test")
 ```
 
 ### Advanced Mock Features (v2.0.0)
@@ -170,6 +175,12 @@ try mock.bash("git commit -m 'test'")
 assert(mock.executedCommand(containing: "git add"))
 assert(mock.commandCount(containing: "git") == 2)
 assert(mock.verifyCommand(at: 0, equals: "git add ."))
+
+// Testing runAndPrint methods
+let buildMock = MockShell(results: ["build output", "test output"])
+try buildMock.runAndPrint("/usr/bin/swift", args: ["build"])  // Consumes "build output"
+try buildMock.runAndPrint(bash: "swift test")  // Consumes "test output"
+assert(buildMock.executedCommands.count == 2)
 ```
 
 ### MockCommand for Precise Test Control (v2.0.0)

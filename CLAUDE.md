@@ -63,6 +63,7 @@ The MockShell provides comprehensive testing capabilities:
   - Array-based: Predefined results returned in FIFO order via `results` parameter
   - Command-based: Specific results mapped to commands using `MockCommand` instances
 - **Error Simulation** - Set `shouldThrowErrorOnFinal: true` to simulate failures when results exhausted
+- **runAndPrint Support** - Both `runAndPrint(_:args:)` and `runAndPrint(bash:)` methods record commands and consume results without returning output
 - **Convenience Methods** - `executedCommand(containing:)`, `commandCount(containing:)`, etc.
 
 ### Test File Organization
@@ -108,6 +109,7 @@ try mock.bash("git status")  // Returns "main branch"
 - `runAndPrint` methods stream output directly to console using `FileHandle.standardOutput` and `FileHandle.standardError`
 - `runAndPrint` methods wait indefinitely for process completion (no timeout support)
 - MockShell uses strategy pattern for flexible result handling
+- MockShell `runAndPrint` methods record commands and consume results from the strategy without returning output
 - MockShell handles empty arguments correctly (no trailing space)
 - Error tests should expect `NSError` for missing executables, `ShellError` for command failures
 - Output expectations should account for shell behavior (e.g., echo stripping outer quotes)

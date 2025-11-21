@@ -425,6 +425,101 @@ extension MockShellTests {
 }
 
 
+// MARK: - runAndPrint Methods
+extension MockShellTests {
+    @Test("Records runAndPrint commands without returning output")
+    func recordsRunAndPrintCommands() throws {
+        let sut = makeSUT()
+        try sut.runAndPrint("/bin/echo", args: ["test"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/echo test")
+        #expect(sut.executedCommands[1] == "/bin/bash -c git status")
+    }
+
+    @Test("Consumes array results without returning")
+    func consumesArrayResultsWithoutReturning() throws {
+        let sut = makeSUT(results: ["result1", "result2", "result3"])
+        try sut.runAndPrint("/bin/test", args: [])
+
+        let output = try sut.bash("next")
+        #expect(output == "result2")
+    }
+
+    @Test("Throws errors from array strategy when configured")
+    func throwsErrorsFromArrayStrategy() throws {
+        let sut = makeSUT(results: ["result1"], shouldThrowErrorOnFinal: true)
+        try sut.runAndPrint("/bin/test", args: [])
+
+        #expect(throws: ShellError.self) {
+            try sut.runAndPrint("/bin/test2", args: [])
+        }
+    }
+
+    @Test("Works with command-specific strategy")
+    func worksWithCommandSpecificStrategy() throws {
+        let commands = [
+            MockCommand(command: "/bin/test arg", output: "output1"),
+            MockCommand(command: "/bin/bash -c git status", output: "output2")
+        ]
+        let sut = makeSUT(commands: commands)
+
+        try sut.runAndPrint("/bin/test", args: ["arg"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/test arg")
+        #expect(sut.executedCommands[1] == "/bin/bash -c git status")
+    }
+
+    @Test("Throws errors from command strategy")
+    func throwsErrorsFromCommandStrategy() throws {
+        let error = ShellError.failed(program: "/bin/test", code: 1, output: "error")
+        let commands = [
+            MockCommand(command: "/bin/test", error: error)
+        ]
+        let sut = makeSUT(commands: commands)
+
+        #expect(throws: ShellError.self) {
+            try sut.runAndPrint("/bin/test", args: [])
+        }
+    }
+
+    @Test("Bash variant delegates to program variant")
+    func bashVariantDelegatesToProgramVariant() throws {
+        let command = "echo hello"
+        let sut = makeSUT()
+        try sut.runAndPrint(bash: command)
+
+        #expect(sut.executedCommands.count == 1)
+        #expect(sut.executedCommands[0] == "/bin/bash -c \(command)")
+    }
+
+    @Test("Handles empty arguments in runAndPrint")
+    func handlesEmptyArgumentsInRunAndPrint() throws {
+        let sut = makeSUT()
+        try sut.runAndPrint("/bin/program", args: [])
+
+        #expect(sut.executedCommands[0] == "/bin/program")
+    }
+
+    @Test("Mixed usage with run and bash methods")
+    func mixedUsageWithRunAndBashMethods() throws {
+        let sut = makeSUT(results: ["r1", "r2", "r3", "r4"])
+
+        let output1 = try sut.bash("cmd1")
+        try sut.runAndPrint("/bin/test", args: [])
+        let output2 = try sut.run("/bin/echo", args: ["test"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(output1 == "r1")
+        #expect(output2 == "r3")
+        #expect(sut.executedCommands.count == 4)
+    }
+}
+
+
 // MARK: - SUT
 private extension MockShellTests {
     func makeSUT(results: [String] = [], commands: [MockCommand] = [], shouldThrowErrorOnFinal: Bool = false) -> MockShell {
