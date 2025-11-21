@@ -5,6 +5,8 @@
 //  Created by Nikolai Nobadi on 8/16/25.
 //
 
+import NnShellKit
+
 /// A mock implementation of Shell for testing purposes.
 ///
 /// MockShell records all executed commands and can be configured to return

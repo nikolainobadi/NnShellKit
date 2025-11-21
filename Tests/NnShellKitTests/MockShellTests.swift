@@ -6,7 +6,8 @@
 //
 
 import Testing
-@testable import NnShellKit
+import NnShellKit
+import NnShellTesting
 
 struct MockShellTests {
     
