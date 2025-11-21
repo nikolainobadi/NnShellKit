@@ -17,14 +17,14 @@ import NnShellKit
 /// ```swift
 /// let mock = MockShell(results: ["branch1", "branch2"], shouldThrowError: false)
 /// let output = try mock.bash("git branch")  // Returns "branch1"
-/// assert(mock.executedCommands.first == "git branch")
+/// #expect(mock.executedCommands.first == "git branch")
 /// ```
 ///
 /// Example usage with dictionary results:
 /// ```swift
 /// let mock = MockShell(resultMap: ["git branch": "main\nfeature"], shouldThrowError: false)
 /// let output = try mock.bash("git branch")  // Returns "main\nfeature"
-/// assert(mock.executedCommands.first == "git branch")
+/// #expect(mock.executedCommands.first == "git branch")
 /// ```
 public class MockShell {
     /// The strategy used for determining command results.
