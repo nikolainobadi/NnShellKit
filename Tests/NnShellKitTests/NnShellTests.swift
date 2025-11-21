@@ -119,9 +119,11 @@ extension NnShellTests {
             }
         }
     }
-    
-    // MARK: - Output Trimming Tests
-    
+}
+
+
+// MARK: - Output Trimming Tests
+extension NnShellTests {
     @Test("Output preserves internal spaces")
     func outputPreservesInternalSpaces() throws {
         let output = try shell.bash("echo '  content with spaces  '")
