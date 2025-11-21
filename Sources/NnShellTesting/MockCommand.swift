@@ -5,6 +5,8 @@
 //  Created by Nikolai Nobadi on 9/19/25.
 //
 
+import NnShellKit
+
 /// Represents a specific mock command with its expected result.
 public struct MockCommand {
     public let command: String

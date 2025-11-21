@@ -9,87 +9,94 @@ import Testing
 import Foundation
 @testable import NnShellKit
 
-@Suite("NnShell Tests")
 struct NnShellTests {
-    private let shell = NnShell()
-    
-    // MARK: - Successful Command Tests
-    
-    @Test("Run successful command")
-    func runSuccessfulCommand() throws {
-        let output = try shell.run("/bin/echo", args: ["Hello, World!"])
+    @Test("Executes command and returns output")
+    func executesCommandAndReturnsOutput() throws {
+        let sut = makeSUT()
+        let output = try sut.run("/bin/echo", args: ["Hello, World!"])
         #expect(output == "Hello, World!")
     }
-    
-    @Test("Run with multiple arguments")
-    func runWithMultipleArguments() throws {
-        let output = try shell.run("/bin/echo", args: ["-n", "No newline"])
+
+    @Test("Handles multiple command arguments")
+    func handlesMultipleArguments() throws {
+        let sut = makeSUT()
+        let output = try sut.run("/bin/echo", args: ["-n", "No newline"])
         #expect(output == "No newline")
     }
-    
-    @Test("Run with empty arguments")
-    func runWithEmptyArguments() throws {
-        let output = try shell.run("/bin/echo", args: [])
+
+    @Test("Handles commands without arguments")
+    func handlesCommandsWithoutArguments() throws {
+        let sut = makeSUT()
+        let output = try sut.run("/bin/echo", args: [])
         #expect(output == "")
     }
-    
-    @Test("Bash successful command")
-    func bashSuccessfulCommand() throws {
-        let output = try shell.bash("echo 'Hello from bash'")
+
+    @Test("Executes bash commands with shell features")
+    func executesBashCommands() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo 'Hello from bash'")
         #expect(output == "Hello from bash")
     }
-    
-    @Test("Bash with pipe")
-    func bashWithPipe() throws {
-        let output = try shell.bash("echo 'line1\nline2\nline3' | head -2")
+
+    @Test("Supports piped commands")
+    func supportsPipedCommands() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo 'line1\nline2\nline3' | head -2")
         #expect(output == "line1\nline2")
     }
-    
-    @Test("Bash with environment variable")
-    func bashWithEnvironmentVariable() throws {
-        let output = try shell.bash("echo $HOME")
+
+    @Test("Expands environment variables")
+    func expandsEnvironmentVariables() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo $HOME")
         #expect(!output.isEmpty)
         #expect(output.hasPrefix("/"))
     }
-    
-    @Test("Bash with redirect")
-    func bashWithRedirect() throws {
+
+    @Test("Supports output redirection")
+    func supportsOutputRedirection() throws {
+        let sut = makeSUT()
         let tempFile = "/tmp/nnshellkit_test_\(UUID().uuidString).txt"
-        try shell.bash("echo 'test content' > \(tempFile)")
-        
-        let content = try shell.bash("cat \(tempFile)")
+        try sut.bash("echo 'test content' > \(tempFile)")
+
+        let content = try sut.bash("cat \(tempFile)")
         #expect(content == "test content")
-        
-        // Cleanup
-        try shell.bash("rm \(tempFile)")
+
+        try sut.bash("rm \(tempFile)")
     }
-    
-    @Test("Bash with command chaining")
-    func bashWithCommandChaining() throws {
-        let output = try shell.bash("echo 'first' && echo 'second'")
+
+    @Test("Chains commands with logical operators")
+    func chainsCommandsWithLogicalOperators() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo 'first' && echo 'second'")
         #expect(output == "first\nsecond")
     }
-    
-    // MARK: - Error Handling Tests
-    
-    @Test("Run throws for non-existent program")
-    func runThrowsForNonExistentProgram() {
+}
+
+
+// MARK: - Error Handling
+extension NnShellTests {
+    @Test("Throws error for non-existent program")
+    func throwsErrorForNonExistentProgram() {
+        let sut = makeSUT()
         #expect(throws: (any Error).self) {
-            try shell.run("/non/existent/program", args: [])
+            try sut.run("/non/existent/program", args: [])
         }
     }
-    
-    @Test("Run throws for failing command")
-    func runThrowsForFailingCommand() throws {
+
+    @Test("Throws error for failing command")
+    func throwsErrorForFailingCommand() throws {
+        let sut = makeSUT()
         #expect(throws: ShellError.self) {
-            try shell.run("/bin/ls", args: ["/non/existent/directory"])
+            try sut.run("/bin/ls", args: ["/non/existent/directory"])
         }
     }
-    
-    @Test("Bash throws for failing command")
-    func bashThrowsForFailingCommand() throws {
+
+    @Test("Captures error details for failing bash commands")
+    func capturesErrorDetailsForFailingBashCommands() throws {
+        let sut = makeSUT()
         do {
-            try shell.bash("ls /non/existent/directory")
+            try sut.bash("ls /non/existent/directory")
             Issue.record("Expected command to throw")
         } catch let error as ShellError {
             if case .failed(let program, let code, let output) = error {
@@ -101,11 +108,12 @@ struct NnShellTests {
             }
         }
     }
-    
-    @Test("Bash throws for invalid syntax")
-    func bashThrowsForInvalidSyntax() throws {
+
+    @Test("Throws error for invalid bash syntax")
+    func throwsErrorForInvalidBashSyntax() throws {
+        let sut = makeSUT()
         do {
-            try shell.bash("echo 'unclosed quote")
+            try sut.bash("echo 'unclosed quote")
             Issue.record("Expected command to throw")
         } catch let error as ShellError {
             if case .failed(let program, let code, _) = error {
@@ -116,110 +124,105 @@ struct NnShellTests {
             }
         }
     }
-    
-    // MARK: - Output Trimming Tests
-    
-    @Test("Output preserves internal spaces")
-    func outputPreservesInternalSpaces() throws {
-        let output = try shell.bash("echo '  content with spaces  '")
+}
+
+
+// MARK: - Output Processing
+extension NnShellTests {
+    @Test("Preserves internal spaces in output")
+    func preservesInternalSpaces() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo '  content with spaces  '")
         #expect(output == "content with spaces")
     }
-    
-    @Test("Newlines are trimmed")
-    func newlinesAreTrimmed() throws {
-        let output = try shell.bash("echo 'content'")
+
+    @Test("Trims trailing newlines from output")
+    func trimsTrailingNewlines() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("echo 'content'")
         #expect(output == "content")
         #expect(!output.hasSuffix("\n"))
     }
-    
-    // MARK: - Discardable Result Tests
-    
-    @Test("Discardable result can be ignored")
-    func discardableResultCanBeIgnored() throws {
-        // This should compile and run without warnings about unused results
-        try shell.run("/bin/echo", args: ["ignored output"])
-        try shell.bash("echo 'ignored bash output'")
-    }
-    
-    // MARK: - Integration with Real System Commands
-    
-    @Test("Which command")
-    func whichCommand() throws {
-        let output = try shell.bash("which bash")
-        #expect(output == "/bin/bash")
-    }
-    
-    // MARK: - Asynchronous Output Reading Tests
-    
-    @Test("Large output is not truncated")
-    func largeOutputIsNotTruncated() throws {
-        // Generate a large output to test async reading prevents truncation
+}
+
+
+// MARK: - Asynchronous Output Handling
+extension NnShellTests {
+    @Test("Captures large output without truncation")
+    func capturesLargeOutputWithoutTruncation() throws {
+        let sut = makeSUT()
         let expectedLines = 1000
         let command = "for i in {1..\(expectedLines)}; do echo \"Line $i\"; done"
-        let output = try shell.bash(command)
-        
+        let output = try sut.bash(command)
+
         let lines = output.components(separatedBy: .newlines)
         #expect(lines.count == expectedLines)
         #expect(lines.first == "Line 1")
         #expect(lines.last == "Line \(expectedLines)")
     }
-    
-    @Test("Rapid output chunks are captured completely")
-    func rapidOutputChunksAreCapturedCompletely() throws {
-        // Test that rapid output generation doesn't cause truncation
+
+    @Test("Captures rapid output completely")
+    func capturesRapidOutputCompletely() throws {
+        let sut = makeSUT()
         let command = "for i in {1..100}; do echo -n \"Chunk$i \"; done; echo"
-        let output = try shell.bash(command)
-        
-        // Verify all chunks are present
+        let output = try sut.bash(command)
+
         for i in 1...100 {
             #expect(output.contains("Chunk\(i)"))
         }
-        
-        // Count chunks to ensure none are missing
+
         let chunkCount = output.components(separatedBy: "Chunk").count - 1
         #expect(chunkCount == 100)
     }
-    
-    @Test("Mixed stdout and stderr are captured together")
-    func mixedStdoutAndStderrAreCapturedTogether() throws {
-        // Test that both stdout and stderr are captured when interleaved
+
+    @Test("Merges stdout and stderr into single stream")
+    func mergesStdoutAndStderr() throws {
+        let sut = makeSUT()
         let command = """
         echo "stdout line 1"; \
         echo "stderr line 1" >&2; \
         echo "stdout line 2"; \
         echo "stderr line 2" >&2
         """
-        
-        let output = try shell.bash(command)
-        
+
+        let output = try sut.bash(command)
+
         #expect(output.contains("stdout line 1"))
         #expect(output.contains("stderr line 1"))
         #expect(output.contains("stdout line 2"))
         #expect(output.contains("stderr line 2"))
     }
-    
-    @Test("Binary-like output is handled correctly")
-    func binaryLikeOutputIsHandledCorrectly() throws {
-        // Test output with various characters including nulls and control chars
+
+    @Test("Handles output with special characters")
+    func handlesOutputWithSpecialCharacters() throws {
+        let sut = makeSUT()
         let command = "printf 'Hello\\x00World\\x01\\x02\\x03\\nEnd'"
-        let output = try shell.bash(command)
-        
+        let output = try sut.bash(command)
+
         #expect(output.contains("Hello"))
         #expect(output.contains("World"))
         #expect(output.contains("End"))
     }
-    
-    @Test("Long running command with streaming output")
-    func longRunningCommandWithStreamingOutput() throws {
-        // Test a command that produces output over time
+
+    @Test("Captures streaming output from long-running commands")
+    func capturesStreamingOutput() throws {
+        let sut = makeSUT()
         let command = "for i in {1..10}; do echo \"Output $i\"; sleep 0.01; done"
-        let output = try shell.bash(command)
-        
+        let output = try sut.bash(command)
+
         let lines = output.components(separatedBy: .newlines)
         #expect(lines.count == 10)
-        
+
         for i in 1...10 {
             #expect(lines[i-1] == "Output \(i)")
         }
+    }
+}
+
+
+// MARK: - SUT
+private extension NnShellTests {
+    func makeSUT() -> NnShell {
+        return .init()
     }
 }

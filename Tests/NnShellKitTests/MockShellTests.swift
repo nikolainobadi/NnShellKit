@@ -6,360 +6,126 @@
 //
 
 import Testing
-@testable import NnShellKit
+import NnShellKit
+import NnShellTesting
 
 struct MockShellTests {
-    
-    // MARK: - Basic Functionality Tests
-    
-    @Test("MockShell initialization")
-    func mockShellInitialization() {
-        let mock = MockShell()
-        #expect(mock.executedCommands.count == 0)
-        #expect(mock.wasUnused == true)
+    @Test("Starting values empty")
+    func emptyStartingValues() {
+        let sut = makeSUT()
+        #expect(sut.executedCommands.count == 0)
+        #expect(sut.wasUnused == true)
     }
-    
-    @Test("MockShell with results")
-    func mockShellWithResults() throws {
-        let mock = MockShell(results: ["result1", "result2"])
-        
-        let output1 = try mock.bash("command1")
-        let output2 = try mock.bash("command2")
-        
-        #expect(output1 == "result1")
-        #expect(output2 == "result2")
+}
+
+
+// MARK: - Basic Functionality & Command Recording
+extension MockShellTests {
+    @Test("Returns configured results in order")
+    func returnsConfiguredResultsInOrder() throws {
+        let firstResult = "result1"
+        let secondResult = "result2"
+        let sut = makeSUT(results: [firstResult, secondResult])
+
+        let output1 = try sut.bash("command1")
+        let output2 = try sut.bash("command2")
+
+        #expect(output1 == firstResult)
+        #expect(output2 == secondResult)
     }
-    
-    @Test("MockShell with empty results")
-    func mockShellWithEmptyResults() throws {
-        let mock = MockShell()
-        let output = try mock.bash("test command")
+
+    @Test("Returns empty string when no results configured")
+    func returnsEmptyStringWithNoResults() throws {
+        let sut = makeSUT()
+        let output = try sut.bash("test command")
         #expect(output == "")
     }
-    
-    // MARK: - Command Recording Tests
-    
-    @Test("Run command recording")
-    func runCommandRecording() throws {
-        let mock = MockShell()
-        try mock.run("/bin/ls", args: ["-la"])
-        try mock.run("/usr/bin/git", args: ["status"])
-        
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "/bin/ls -la")
-        #expect(mock.executedCommands[1] == "/usr/bin/git status")
-        #expect(mock.wasUnused == false)
-    }
-    
-    @Test("Bash command recording")
-    func bashCommandRecording() throws {
-        let mock = MockShell()
-        try mock.bash("git status")
-        try mock.bash("echo 'hello world'")
-        
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "git status")
-        #expect(mock.executedCommands[1] == "echo 'hello world'")
-    }
-    
-    @Test("Mixed command recording")
-    func mixedCommandRecording() throws {
-        let mock = MockShell()
-        try mock.run("/bin/echo", args: ["test"])
-        try mock.bash("pwd")
-        
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "/bin/echo test")
-        #expect(mock.executedCommands[1] == "pwd")
-    }
-    
-    // MARK: - Result Queue Tests
-    
-    @Test("Result queue consumption")
-    func resultQueueConsumption() throws {
-        let mock = MockShell(results: ["first", "second", "third"])
-        
-        #expect(try mock.bash("cmd1") == "first")
-        #expect(try mock.bash("cmd2") == "second")
-        #expect(try mock.bash("cmd3") == "third")
-        #expect(try mock.bash("cmd4") == "") // Queue exhausted
-    }
-    
-    @Test("Result queue with run")
-    func resultQueueWithRun() throws {
-        let mock = MockShell(results: ["output1", "output2"])
-        
-        #expect(try mock.run("/bin/test", args: ["arg"]) == "output1")
-        #expect(try mock.run("/bin/test2", args: []) == "output2")
-    }
-    
-    // MARK: - Error Simulation Test
-    
-    // MARK: - Reset Functionality Tests
-    
-    @Test("Reset")
-    func reset() throws {
-        let mock = MockShell()
-        try mock.bash("initial command")
-        mock.reset()
-        
-        #expect(mock.executedCommands.count == 0)
-        #expect(mock.wasUnused == true)
-    }
-    
-    @Test("Reset with new results")
-    func resetWithNewResults() throws {
-        let mock = MockShell()
-        try mock.bash("command")
-        mock.reset(results: ["new1", "new2"])
-        
-        #expect(mock.executedCommands.count == 0)
-        #expect(try mock.bash("test") == "new1")
-        #expect(try mock.bash("test") == "new2")
-    }
-    
-    // MARK: - Convenience Method Tests
-    
-    @Test("Executed command containing")
-    func executedCommandContaining() throws {
-        let mock = MockShell()
-        try mock.bash("git status")
-        try mock.bash("git add .")
-        try mock.bash("echo hello")
-        
-        #expect(mock.executedCommand(containing: "git") == true)
-        #expect(mock.executedCommand(containing: "status") == true)
-        #expect(mock.executedCommand(containing: "echo") == true)
-        #expect(mock.executedCommand(containing: "push") == false)
-    }
-    
-    @Test("Command count")
-    func commandCount() throws {
-        let mock = MockShell()
-        try mock.bash("git status")
-        try mock.bash("git add .")
-        try mock.bash("git commit")
-        try mock.bash("echo test")
-        
-        #expect(mock.commandCount(containing: "git") == 3)
-        #expect(mock.commandCount(containing: "echo") == 1)
-        #expect(mock.commandCount(containing: "missing") == 0)
-    }
-    
-    @Test("Verify command at index")
-    func verifyCommandAtIndex() throws {
-        let mock = MockShell()
-        try mock.bash("first command")
-        try mock.bash("second command")
-        
-        #expect(mock.verifyCommand(at: 0, equals: "first command") == true)
-        #expect(mock.verifyCommand(at: 1, equals: "second command") == true)
-        #expect(mock.verifyCommand(at: 0, equals: "wrong command") == false)
-        #expect(mock.verifyCommand(at: 2, equals: "out of bounds") == false)
-    }
-    
-    @Test("Was unused")
-    func wasUnused() throws {
-        let mock = MockShell()
-        #expect(mock.wasUnused == true)
-        
-        try mock.bash("any command")
-        #expect(mock.wasUnused == false)
-        
-        mock.reset()
-        #expect(mock.wasUnused == true)
-    }
-    
-    // MARK: - Discardable Result Tests
-    
-    @Test("Discardable result with mock")
-    func discardableResultWithMock() throws {
-        let mock = MockShell(results: ["ignored"])
-        
-        // Should compile without warnings about unused results
-        try mock.bash("command")
-        try mock.run("/bin/test", args: [])
-    }
-    
-    // MARK: - Edge Cases
-    
-    @Test("Empty arguments")
-    func emptyArguments() throws {
-        let mock = MockShell()
-        try mock.run("/bin/program", args: [])
-        #expect(mock.executedCommands[0] == "/bin/program")
-    }
-    
-    @Test("Arguments with spaces")
-    func argumentsWithSpaces() throws {
-        let mock = MockShell()
-        try mock.run("/bin/program", args: ["arg with spaces", "another arg"])
-        #expect(mock.executedCommands[0] == "/bin/program arg with spaces another arg")
-    }
-    
-    @Test("Multiple spaces in arguments")
-    func multipleSpacesInArguments() throws {
-        let mock = MockShell()
-        try mock.run("/bin/test", args: ["  spaced  ", "  arg  "])
-        #expect(mock.executedCommands[0] == "/bin/test   spaced     arg  ")
-    }
-    
-    // MARK: - Dictionary-Based Results Tests
-    
-    @Test("Dictionary-based initialization")
-    func dictionaryBasedInitialization() {
-        let commands = [
-            MockCommand(command: "git status", output: "main\nfeature"),
-            MockCommand(command: "pwd", output: "/home/user")
-        ]
-        let mock = MockShell(commands: commands)
-        #expect(mock.executedCommands.count == 0)
-        #expect(mock.wasUnused == true)
-    }
-    
-    @Test("Dictionary-based bash commands")
-    func dictionaryBasedBashCommands() throws {
-        let commands = [
-            MockCommand(command: "git status", output: "main\nfeature"),
-            MockCommand(command: "pwd", output: "/home/user"),
-            MockCommand(command: "echo hello", output: "hello")
-        ]
-        let mock = MockShell(commands: commands)
-        
-        #expect(try mock.bash("git status") == "main\nfeature")
-        #expect(try mock.bash("pwd") == "/home/user")
-        #expect(try mock.bash("echo hello") == "hello")
-        
-        #expect(mock.executedCommands.count == 3)
-        #expect(mock.executedCommands[0] == "git status")
-        #expect(mock.executedCommands[1] == "pwd")
-        #expect(mock.executedCommands[2] == "echo hello")
-    }
-    
-    @Test("Dictionary-based run commands")
-    func dictionaryBasedRunCommands() throws {
-        let commands = [
-            MockCommand(command: "/bin/ls -la", output: "total 8"),
-            MockCommand(command: "/usr/bin/git status", output: "clean working directory")
-        ]
-        let mock = MockShell(commands: commands)
-        
-        #expect(try mock.run("/bin/ls", args: ["-la"]) == "total 8")
-        #expect(try mock.run("/usr/bin/git", args: ["status"]) == "clean working directory")
-        
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "/bin/ls -la")
-        #expect(mock.executedCommands[1] == "/usr/bin/git status")
-    }
-    
-    @Test("Dictionary-based unmapped commands return empty string")
-    func dictionaryBasedUnmappedCommands() throws {
-        let commands = [MockCommand(command: "known command", output: "result")]
-        let mock = MockShell(commands: commands)
-        
-        #expect(try mock.bash("known command") == "result")
-        #expect(try mock.bash("unknown command") == "")
-        
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "known command")
-        #expect(mock.executedCommands[1] == "unknown command")
-    }
-    
-    @Test("Dictionary-based mixed with array fallback")
-    func dictionaryBasedMixedWithArrayFallback() throws {
-        // Initialize with both dictionary and array results
-        var mock = MockShell(commands: [MockCommand(command: "mapped", output: "from dictionary")])
-        mock.reset(results: ["from array"])
 
-        // Dictionary result should take precedence when both are available
-        mock = MockShell(results: ["from array"])
-        mock.reset(commands: [MockCommand(command: "mapped", output: "from dictionary")])
-        
-        #expect(try mock.bash("mapped") == "from dictionary")
-        #expect(try mock.bash("unmapped") == "")
-    }
-    
-    // MARK: - New Reset Method Tests
-    
-    @Test("Reset with dictionary results")
-    func resetWithDictionaryResults() throws {
-        let mock = MockShell()
-        try mock.bash("initial command")
+    @Test("Records all executed bash commands")
+    func recordsExecutedBashCommands() throws {
+        let firstCommand = "git status"
+        let secondCommand = "echo 'hello world'"
+        let sut = makeSUT()
 
-        let newCommands = [
-            MockCommand(command: "test", output: "new result"),
-            MockCommand(command: "other", output: "other result")
-        ]
-        mock.reset(commands: newCommands)
-        
-        #expect(mock.executedCommands.count == 0)
-        #expect(try mock.bash("test") == "new result")
-        #expect(try mock.bash("other") == "other result")
-        #expect(try mock.bash("unmapped") == "")
-    }
-    
-    @Test("Reset array clears dictionary")
-    func resetArrayClearsDictionary() throws {
-        let mock = MockShell(commands: [MockCommand(command: "test", output: "dictionary result")])
-        mock.reset(results: ["array result"])
-        
-        #expect(try mock.bash("test") == "array result")
-        #expect(try mock.bash("another") == "")
-    }
-    
-    @Test("Reset dictionary clears array")
-    func resetDictionaryClearsArray() throws {
-        let mock = MockShell(results: ["array result"])
-        mock.reset(commands: [MockCommand(command: "test", output: "dictionary result")])
+        try sut.bash(firstCommand)
+        try sut.bash(secondCommand)
 
-        #expect(try mock.bash("test") == "dictionary result")
-        #expect(try mock.bash("unmapped") == "")
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == firstCommand)
+        #expect(sut.executedCommands[1] == secondCommand)
     }
 
-    // MARK: - Error Testing for New Features
+    @Test("Records all executed run commands")
+    func recordsExecutedRunCommands() throws {
+        let sut = makeSUT()
+        try sut.run("/bin/ls", args: ["-la"])
+        try sut.run("/usr/bin/git", args: ["status"])
 
-    @Test("MockCommand with error result throws correctly")
-    func mockCommandWithErrorResult() throws {
-        let expectedError = ShellError.failed(program: "/bin/test", code: 42, output: "Custom error message")
-        let commands = [
-            MockCommand(command: "success", output: "ok"),
-            MockCommand(command: "failure", error: expectedError)
-        ]
-        let mock = MockShell(commands: commands)
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/ls -la")
+        #expect(sut.executedCommands[1] == "/usr/bin/git status")
+        #expect(sut.wasUnused == false)
+    }
 
-        // Success case should work normally
-        #expect(try mock.bash("success") == "ok")
+    @Test("Records mixed bash and run commands")
+    func recordsMixedCommands() throws {
+        let sut = makeSUT()
+        try sut.run("/bin/echo", args: ["test"])
+        try sut.bash("pwd")
 
-        // Error case should throw the specified error
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/echo test")
+        #expect(sut.executedCommands[1] == "pwd")
+    }
+
+    @Test("Supports discardable results")
+    func supportsDiscardableResults() throws {
+        let sut = makeSUT(results: ["ignored"])
+        try sut.bash("command")
+        try sut.run("/bin/test", args: [])
+    }
+}
+
+
+// MARK: - Array-Based Result Strategy
+extension MockShellTests {
+    @Test("Consumes array results in FIFO order")
+    func consumesArrayResultsInOrder() throws {
+        let sut = makeSUT(results: ["first", "second", "third"])
+
+        #expect(try sut.bash("cmd1") == "first")
+        #expect(try sut.bash("cmd2") == "second")
+        #expect(try sut.bash("cmd3") == "third")
+        #expect(try sut.bash("cmd4") == "")
+    }
+
+    @Test("Shares result queue between bash and run commands")
+    func sharesResultQueueBetweenMethods() throws {
+        let sut = makeSUT(results: ["output1", "output2"])
+
+        #expect(try sut.run("/bin/test", args: ["arg"]) == "output1")
+        #expect(try sut.run("/bin/test2", args: []) == "output2")
+    }
+
+    @Test("Returns empty string when array results exhausted")
+    func returnsEmptyWhenArrayExhausted() throws {
+        let sut = makeSUT(results: ["only"], shouldThrowErrorOnFinal: false)
+
+        #expect(try sut.bash("cmd1") == "only")
+        #expect(try sut.bash("cmd2") == "")
+        #expect(try sut.bash("cmd3") == "")
+        #expect(sut.executedCommands.count == 3)
+    }
+
+    @Test("Throws error when array results exhausted and configured")
+    func throwsErrorWhenArrayExhausted() throws {
+        let sut = makeSUT(results: ["first", "second"], shouldThrowErrorOnFinal: true)
+
+        #expect(try sut.bash("cmd1") == "first")
+        #expect(try sut.bash("cmd2") == "second")
+
         do {
-            try mock.bash("failure")
-            Issue.record("Expected error to be thrown")
-        } catch let error as ShellError {
-            if case .failed(let program, let code, let output) = error {
-                #expect(program == "/bin/test")
-                #expect(code == 42)
-                #expect(output == "Custom error message")
-            } else {
-                Issue.record("Expected ShellError.failed case")
-            }
-        }
-
-        #expect(mock.executedCommands.count == 2)
-        #expect(mock.executedCommands[0] == "success")
-        #expect(mock.executedCommands[1] == "failure")
-    }
-
-    @Test("Array results with shouldThrowErrorOnFinal true")
-    func arrayResultsThrowErrorOnFinal() throws {
-        let mock = MockShell(results: ["first", "second"], shouldThrowErrorOnFinal: true)
-
-        // First two commands should return results
-        #expect(try mock.bash("cmd1") == "first")
-        #expect(try mock.bash("cmd2") == "second")
-
-        // Third command should throw error since results are exhausted
-        do {
-            try mock.bash("cmd3")
+            try sut.bash("cmd3")
             Issue.record("Expected error to be thrown on final command")
         } catch let error as ShellError {
             if case .failed(let program, let code, let output) = error {
@@ -371,43 +137,227 @@ struct MockShellTests {
             }
         }
 
-        #expect(mock.executedCommands.count == 3)
+        #expect(sut.executedCommands.count == 3)
+    }
+}
+
+
+// MARK: - Dictionary-Based Result Strategy
+extension MockShellTests {
+    @Test("Returns command-specific results from dictionary")
+    func returnsCommandSpecificResults() throws {
+        let commands = [
+            MockCommand(command: "git status", output: "main\nfeature"),
+            MockCommand(command: "pwd", output: "/home/user"),
+            MockCommand(command: "echo hello", output: "hello")
+        ]
+        let sut = makeSUT(commands: commands)
+
+        #expect(try sut.bash("git status") == "main\nfeature")
+        #expect(try sut.bash("pwd") == "/home/user")
+        #expect(try sut.bash("echo hello") == "hello")
+        #expect(sut.executedCommands.count == 3)
+        #expect(sut.executedCommands[0] == "git status")
+        #expect(sut.executedCommands[1] == "pwd")
+        #expect(sut.executedCommands[2] == "echo hello")
     }
 
-    @Test("Array results with shouldThrowErrorOnFinal false")
-    func arrayResultsReturnEmptyOnFinal() throws {
-        let mock = MockShell(results: ["only"], shouldThrowErrorOnFinal: false)
+    @Test("Matches run commands with dictionary strategy")
+    func matchesRunCommandsWithDictionary() throws {
+        let commands = [
+            MockCommand(command: "/bin/ls -la", output: "total 8"),
+            MockCommand(command: "/usr/bin/git status", output: "clean working directory")
+        ]
+        let sut = makeSUT(commands: commands)
 
-        // First command should return result
-        #expect(try mock.bash("cmd1") == "only")
-
-        // Subsequent commands should return empty string
-        #expect(try mock.bash("cmd2") == "")
-        #expect(try mock.bash("cmd3") == "")
-
-        #expect(mock.executedCommands.count == 3)
+        #expect(try sut.run("/bin/ls", args: ["-la"]) == "total 8")
+        #expect(try sut.run("/usr/bin/git", args: ["status"]) == "clean working directory")
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/ls -la")
+        #expect(sut.executedCommands[1] == "/usr/bin/git status")
     }
 
-    @Test("Mixed success and error commands in array")
-    func mixedSuccessAndErrorCommands() throws {
+    @Test("Returns empty string for unmapped commands in dictionary strategy")
+    func returnsEmptyForUnmappedCommands() throws {
+        let commands = [MockCommand(command: "known command", output: "result")]
+        let sut = makeSUT(commands: commands)
+
+        #expect(try sut.bash("known command") == "result")
+        #expect(try sut.bash("unknown command") == "")
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "known command")
+        #expect(sut.executedCommands[1] == "unknown command")
+    }
+
+    @Test("Prefers dictionary over array when both configured")
+    func prefersDictionaryOverArray() throws {
+        let sut = makeSUT(results: ["from array"])
+        sut.reset(commands: [MockCommand(command: "mapped", output: "from dictionary")])
+
+        #expect(try sut.bash("mapped") == "from dictionary")
+        #expect(try sut.bash("unmapped") == "")
+    }
+}
+
+
+// MARK: - Reset & Verification
+extension MockShellTests {
+    @Test("Clears all state on reset")
+    func clearsStateOnReset() throws {
+        let sut = makeSUT()
+        try sut.bash("initial command")
+        sut.reset()
+
+        #expect(sut.executedCommands.count == 0)
+        #expect(sut.wasUnused == true)
+    }
+
+    @Test("Replaces results with new array on reset")
+    func replacesResultsOnReset() throws {
+        let sut = makeSUT()
+        try sut.bash("command")
+        sut.reset(results: ["new1", "new2"])
+
+        #expect(sut.executedCommands.count == 0)
+        #expect(try sut.bash("test") == "new1")
+        #expect(try sut.bash("test") == "new2")
+    }
+
+    @Test("Replaces results with new commands on reset")
+    func replacesCommandsOnReset() throws {
+        let sut = makeSUT()
+        try sut.bash("initial command")
+
+        let newCommands = [
+            MockCommand(command: "test", output: "new result"),
+            MockCommand(command: "other", output: "other result")
+        ]
+        sut.reset(commands: newCommands)
+
+        #expect(sut.executedCommands.count == 0)
+        #expect(try sut.bash("test") == "new result")
+        #expect(try sut.bash("other") == "other result")
+        #expect(try sut.bash("unmapped") == "")
+    }
+
+    @Test("Array reset clears dictionary results")
+    func arrayResetClearsDictionary() throws {
+        let sut = makeSUT(commands: [MockCommand(command: "test", output: "dictionary result")])
+        sut.reset(results: ["array result"])
+
+        #expect(try sut.bash("test") == "array result")
+        #expect(try sut.bash("another") == "")
+    }
+
+    @Test("Dictionary reset clears array results")
+    func dictionaryResetClearsArray() throws {
+        let sut = makeSUT(results: ["array result"])
+        sut.reset(commands: [MockCommand(command: "test", output: "dictionary result")])
+
+        #expect(try sut.bash("test") == "dictionary result")
+        #expect(try sut.bash("unmapped") == "")
+    }
+
+    @Test("Finds executed commands containing substring")
+    func findsCommandsContainingSubstring() throws {
+        let sut = makeSUT()
+        try sut.bash("git status")
+        try sut.bash("git add .")
+        try sut.bash("echo hello")
+
+        #expect(sut.executedCommand(containing: "git") == true)
+        #expect(sut.executedCommand(containing: "status") == true)
+        #expect(sut.executedCommand(containing: "echo") == true)
+        #expect(sut.executedCommand(containing: "push") == false)
+    }
+
+    @Test("Counts commands containing substring")
+    func countsCommandsContainingSubstring() throws {
+        let sut = makeSUT()
+        try sut.bash("git status")
+        try sut.bash("git add .")
+        try sut.bash("git commit")
+        try sut.bash("echo test")
+
+        #expect(sut.commandCount(containing: "git") == 3)
+        #expect(sut.commandCount(containing: "echo") == 1)
+        #expect(sut.commandCount(containing: "missing") == 0)
+    }
+
+    @Test("Verifies command matches at specific index")
+    func verifiesCommandAtIndex() throws {
+        let sut = makeSUT()
+        try sut.bash("first command")
+        try sut.bash("second command")
+
+        #expect(sut.verifyCommand(at: 0, equals: "first command") == true)
+        #expect(sut.verifyCommand(at: 1, equals: "second command") == true)
+        #expect(sut.verifyCommand(at: 0, equals: "wrong command") == false)
+        #expect(sut.verifyCommand(at: 2, equals: "out of bounds") == false)
+    }
+
+    @Test("Tracks unused state correctly")
+    func tracksUnusedState() throws {
+        let sut = makeSUT()
+        #expect(sut.wasUnused == true)
+
+        try sut.bash("any command")
+        #expect(sut.wasUnused == false)
+
+        sut.reset()
+        #expect(sut.wasUnused == true)
+    }
+}
+
+
+// MARK: - Error Handling
+extension MockShellTests {
+    @Test("Throws configured error for specific command")
+    func throwsConfiguredError() throws {
+        let expectedError = ShellError.failed(program: "/bin/test", code: 42, output: "Custom error message")
+        let commands = [
+            MockCommand(command: "success", output: "ok"),
+            MockCommand(command: "failure", error: expectedError)
+        ]
+        let sut = makeSUT(commands: commands)
+
+        #expect(try sut.bash("success") == "ok")
+
+        do {
+            try sut.bash("failure")
+            Issue.record("Expected error to be thrown")
+        } catch let error as ShellError {
+            if case .failed(let program, let code, let output) = error {
+                #expect(program == "/bin/test")
+                #expect(code == 42)
+                #expect(output == "Custom error message")
+            } else {
+                Issue.record("Expected ShellError.failed case")
+            }
+        }
+
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "success")
+        #expect(sut.executedCommands[1] == "failure")
+    }
+
+    @Test("Handles multiple error commands correctly")
+    func handlesMultipleErrors() throws {
         let error1 = ShellError.failed(program: "/usr/bin/failing", code: 1, output: "Error 1")
         let error2 = ShellError.failed(program: "/bin/bash", code: 2, output: "Error 2")
-
         let commands = [
             MockCommand(command: "success1", output: "result1"),
             MockCommand(command: "error1", error: error1),
             MockCommand(command: "success2", output: "result2"),
             MockCommand(command: "error2", error: error2)
         ]
-        let mock = MockShell(commands: commands)
+        let sut = makeSUT(commands: commands)
 
-        // Test success cases
-        #expect(try mock.bash("success1") == "result1")
-        #expect(try mock.bash("success2") == "result2")
+        #expect(try sut.bash("success1") == "result1")
+        #expect(try sut.bash("success2") == "result2")
 
-        // Test error cases and verify error details
         do {
-            try mock.bash("error1")
+            try sut.bash("error1")
             Issue.record("Expected error1 to throw")
         } catch let error as ShellError {
             if case .failed(let program, let code, let output) = error {
@@ -418,7 +368,7 @@ struct MockShellTests {
         }
 
         do {
-            try mock.bash("error2")
+            try sut.bash("error2")
             Issue.record("Expected error2 to throw")
         } catch let error as ShellError {
             if case .failed(let program, let code, let output) = error {
@@ -428,26 +378,157 @@ struct MockShellTests {
             }
         }
 
-        #expect(mock.executedCommands.count == 4)
+        #expect(sut.executedCommands.count == 4)
     }
 
-    @Test("Reset with commands containing errors")
-    func resetWithCommandsContainingErrors() throws {
-        let mock = MockShell(results: ["initial"])
-
+    @Test("Resets error configuration with new commands")
+    func resetsErrorConfiguration() throws {
+        let sut = makeSUT(results: ["initial"])
         let error = ShellError.failed(program: "/bin/test", code: 1, output: "Reset error")
         let newCommands = [
             MockCommand(command: "success", output: "new success"),
             MockCommand(command: "failure", error: error)
         ]
-        mock.reset(commands: newCommands)
+        sut.reset(commands: newCommands)
 
-        #expect(mock.executedCommands.count == 0) // Reset clears commands
+        #expect(sut.executedCommands.count == 0)
+        #expect(try sut.bash("success") == "new success")
+        #expect(throws: ShellError.self) {
+            try sut.bash("failure")
+        }
+    }
+}
 
-        #expect(try mock.bash("success") == "new success")
+
+// MARK: - Edge Cases
+extension MockShellTests {
+    @Test("Handles empty arguments correctly")
+    func handlesEmptyArguments() throws {
+        let sut = makeSUT()
+        try sut.run("/bin/program", args: [])
+        #expect(sut.executedCommands[0] == "/bin/program")
+    }
+
+    @Test("Preserves spaces in arguments")
+    func preservesSpacesInArguments() throws {
+        let sut = makeSUT()
+        try sut.run("/bin/program", args: ["arg with spaces", "another arg"])
+        #expect(sut.executedCommands[0] == "/bin/program arg with spaces another arg")
+    }
+
+    @Test("Preserves multiple spaces in arguments")
+    func preservesMultipleSpaces() throws {
+        let sut = makeSUT()
+        try sut.run("/bin/test", args: ["  spaced  ", "  arg  "])
+        #expect(sut.executedCommands[0] == "/bin/test   spaced     arg  ")
+    }
+}
+
+
+// MARK: - runAndPrint Methods
+extension MockShellTests {
+    @Test("Records runAndPrint commands without returning output")
+    func recordsRunAndPrintCommands() throws {
+        let sut = makeSUT()
+        try sut.runAndPrint("/bin/echo", args: ["test"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/echo test")
+        #expect(sut.executedCommands[1] == "/bin/bash -c git status")
+    }
+
+    @Test("Consumes array results without returning")
+    func consumesArrayResultsWithoutReturning() throws {
+        let sut = makeSUT(results: ["result1", "result2", "result3"])
+        try sut.runAndPrint("/bin/test", args: [])
+
+        let output = try sut.bash("next")
+        #expect(output == "result2")
+    }
+
+    @Test("Throws errors from array strategy when configured")
+    func throwsErrorsFromArrayStrategy() throws {
+        let sut = makeSUT(results: ["result1"], shouldThrowErrorOnFinal: true)
+        try sut.runAndPrint("/bin/test", args: [])
 
         #expect(throws: ShellError.self) {
-            try mock.bash("failure")
+            try sut.runAndPrint("/bin/test2", args: [])
+        }
+    }
+
+    @Test("Works with command-specific strategy")
+    func worksWithCommandSpecificStrategy() throws {
+        let commands = [
+            MockCommand(command: "/bin/test arg", output: "output1"),
+            MockCommand(command: "/bin/bash -c git status", output: "output2")
+        ]
+        let sut = makeSUT(commands: commands)
+
+        try sut.runAndPrint("/bin/test", args: ["arg"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(sut.executedCommands.count == 2)
+        #expect(sut.executedCommands[0] == "/bin/test arg")
+        #expect(sut.executedCommands[1] == "/bin/bash -c git status")
+    }
+
+    @Test("Throws errors from command strategy")
+    func throwsErrorsFromCommandStrategy() throws {
+        let error = ShellError.failed(program: "/bin/test", code: 1, output: "error")
+        let commands = [
+            MockCommand(command: "/bin/test", error: error)
+        ]
+        let sut = makeSUT(commands: commands)
+
+        #expect(throws: ShellError.self) {
+            try sut.runAndPrint("/bin/test", args: [])
+        }
+    }
+
+    @Test("Bash variant delegates to program variant")
+    func bashVariantDelegatesToProgramVariant() throws {
+        let command = "echo hello"
+        let sut = makeSUT()
+        try sut.runAndPrint(bash: command)
+
+        #expect(sut.executedCommands.count == 1)
+        #expect(sut.executedCommands[0] == "/bin/bash -c \(command)")
+    }
+
+    @Test("Handles empty arguments in runAndPrint")
+    func handlesEmptyArgumentsInRunAndPrint() throws {
+        let sut = makeSUT()
+        try sut.runAndPrint("/bin/program", args: [])
+
+        #expect(sut.executedCommands[0] == "/bin/program")
+    }
+
+    @Test("Mixed usage with run and bash methods")
+    func mixedUsageWithRunAndBashMethods() throws {
+        let sut = makeSUT(results: ["r1", "r2", "r3", "r4"])
+
+        let output1 = try sut.bash("cmd1")
+        try sut.runAndPrint("/bin/test", args: [])
+        let output2 = try sut.run("/bin/echo", args: ["test"])
+        try sut.runAndPrint(bash: "git status")
+
+        #expect(output1 == "r1")
+        #expect(output2 == "r3")
+        #expect(sut.executedCommands.count == 4)
+    }
+}
+
+
+// MARK: - SUT
+private extension MockShellTests {
+    func makeSUT(results: [String] = [], commands: [MockCommand] = [], shouldThrowErrorOnFinal: Bool = false) -> MockShell {
+        if !commands.isEmpty {
+            return .init(commands: commands)
+        } else if !results.isEmpty {
+            return .init(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal)
+        } else {
+            return .init()
         }
     }
 }

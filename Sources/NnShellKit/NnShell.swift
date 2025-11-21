@@ -140,3 +140,30 @@ public struct NnShell: Shell {
         return output.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+public extension NnShell {
+    func runAndPrint(_ program: String, args: [String]) throws {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: program)
+        p.arguments = args
+        p.standardOutput = FileHandle.standardOutput
+        p.standardError = FileHandle.standardError
+        
+        let sem = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in sem.signal() }
+        
+        do { try p.run() } catch {
+            throw ShellError.failed(program: program, code: 127, output: "Could not execute")
+        }
+        
+        sem.wait() // wait indefinitely for process to finish
+        
+        if p.terminationReason != .exit || p.terminationStatus != 0 {
+            throw ShellError.failed(program: program, code: p.terminationStatus, output: "")
+        }
+    }
+    
+    func runAndPrint(bash command: String) throws {
+        try runAndPrint("/bin/bash", args: ["-c", command])
+    }
+}

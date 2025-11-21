@@ -5,6 +5,8 @@
 //  Created by Nikolai Nobadi on 8/16/25.
 //
 
+import NnShellKit
+
 /// A mock implementation of Shell for testing purposes.
 ///
 /// MockShell records all executed commands and can be configured to return
@@ -15,14 +17,14 @@
 /// ```swift
 /// let mock = MockShell(results: ["branch1", "branch2"], shouldThrowError: false)
 /// let output = try mock.bash("git branch")  // Returns "branch1"
-/// assert(mock.executedCommands.first == "git branch")
+/// #expect(mock.executedCommands.first == "git branch")
 /// ```
 ///
 /// Example usage with dictionary results:
 /// ```swift
 /// let mock = MockShell(resultMap: ["git branch": "main\nfeature"], shouldThrowError: false)
 /// let output = try mock.bash("git branch")  // Returns "main\nfeature"
-/// assert(mock.executedCommands.first == "git branch")
+/// #expect(mock.executedCommands.first == "git branch")
 /// ```
 public class MockShell {
     /// The strategy used for determining command results.
@@ -89,6 +91,33 @@ extension MockShell: Shell {
         executedCommands.append(command)
         
         return try getResult(for: command, program: "/bin/bash")
+    }
+    
+    /// Simulates executing a program with streaming output.
+    ///
+    /// Records the command in `executedCommands` and consumes the next result
+    /// from the results queue or result map without returning it. Throws errors
+    /// based on the strategy configuration.
+    ///
+    /// - Parameters:
+    ///   - program: The absolute path to the program to execute.
+    ///   - args: An array of arguments to pass to the program.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
+    public func runAndPrint(_ program: String, args: [String]) throws {
+        let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
+        executedCommands.append(command)
+
+        _ = try getResult(for: command, program: program)
+    }
+
+    /// Simulates executing a bash command with streaming output.
+    ///
+    /// Records the command in `executedCommands` and delegates to `runAndPrint(_:args:)`.
+    ///
+    /// - Parameter command: The bash command string to execute.
+    /// - Throws: `ShellError.failed` based on the strategy configuration.
+    public func runAndPrint(bash command: String) throws {
+        try runAndPrint("/bin/bash", args: ["-c", command])
     }
 }
 
