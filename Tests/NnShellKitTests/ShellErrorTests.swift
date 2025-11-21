@@ -9,7 +9,6 @@ import Testing
 @testable import NnShellKit
 
 struct ShellErrorTests {
-    
     @Test("ShellError failed case properties")
     func shellErrorFailedCaseProperties() {
         let error = ShellError.failed(program: "/bin/test", code: 127, output: "command not found")

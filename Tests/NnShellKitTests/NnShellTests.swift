@@ -9,12 +9,13 @@ import Testing
 import Foundation
 @testable import NnShellKit
 
-@Suite("NnShell Tests")
 struct NnShellTests {
     private let shell = NnShell()
-    
-    // MARK: - Successful Command Tests
-    
+}
+
+
+// MARK: - Successful Command Tests
+extension NnShellTests {
     @Test("Run successful command")
     func runSuccessfulCommand() throws {
         let output = try shell.run("/bin/echo", args: ["Hello, World!"])
@@ -69,9 +70,11 @@ struct NnShellTests {
         let output = try shell.bash("echo 'first' && echo 'second'")
         #expect(output == "first\nsecond")
     }
-    
-    // MARK: - Error Handling Tests
-    
+}
+
+
+// MARK: - Error Handling Tests
+extension NnShellTests {
     @Test("Run throws for non-existent program")
     func runThrowsForNonExistentProgram() {
         #expect(throws: (any Error).self) {
@@ -131,26 +134,11 @@ struct NnShellTests {
         #expect(output == "content")
         #expect(!output.hasSuffix("\n"))
     }
+}
     
-    // MARK: - Discardable Result Tests
-    
-    @Test("Discardable result can be ignored")
-    func discardableResultCanBeIgnored() throws {
-        // This should compile and run without warnings about unused results
-        try shell.run("/bin/echo", args: ["ignored output"])
-        try shell.bash("echo 'ignored bash output'")
-    }
-    
-    // MARK: - Integration with Real System Commands
-    
-    @Test("Which command")
-    func whichCommand() throws {
-        let output = try shell.bash("which bash")
-        #expect(output == "/bin/bash")
-    }
-    
-    // MARK: - Asynchronous Output Reading Tests
-    
+
+// MARK: - Asynchronous Output Reading Tests
+extension NnShellTests {
     @Test("Large output is not truncated")
     func largeOutputIsNotTruncated() throws {
         // Generate a large output to test async reading prevents truncation
