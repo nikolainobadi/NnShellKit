@@ -36,8 +36,19 @@ NnShellKit provides a simple interface for bash commands and direct program exec
 
 ## Installation
 
+Add the package
 ```swift
 .package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.0.0")
+```
+
+Add NnShellKit as a target dependency
+```swift
+.product(name: "NnShellKit", package: "NnShellKit")
+```
+
+Add NnShellTesting as a test target dependency (optional)
+```swift
+.product(name: "NnShellTesting", package: "NnShellKit")
 ```
 
 ## Quick Start
