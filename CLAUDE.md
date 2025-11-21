@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Imports
+
+@~/.claude/guidelines/shared-formatting-claude.md
+@~/.claude/guidelines/ios_unit_testing_claude_instructions.md
+
 ## Project Overview
 
 NnShellKit is a lightweight Swift package that provides a simple interface for executing shell commands from Swift code. It offers both direct program execution and bash command execution with proper error handling.
@@ -56,7 +61,7 @@ The MockShell provides comprehensive testing capabilities:
   - Array-based: Predefined results returned in FIFO order via `results` parameter
   - Command-based: Specific results mapped to commands using `MockCommand` instances
 - **Error Simulation** - Set `shouldThrowErrorOnFinal: true` to simulate failures when results exhausted
-- **Convenience Methods** - `executedCommand(containing:)`, `commandCount(containing:)`, `verifyCommand(at:equals:)`, etc.
+- **Convenience Methods** - `executedCommand(containing:)`, `commandCount(containing:)`, etc.
 
 ### Test File Organization
 - `NnShellTests.swift` - Tests for the production NnShell implementation including timeout behavior
@@ -102,7 +107,21 @@ try mock.bash("git status")  // Returns "main branch"
 - Error tests should expect `NSError` for missing executables, `ShellError` for command failures
 - Output expectations should account for shell behavior (e.g., echo stripping outer quotes)
 
+## Public API Expectations
+
+- Clear, well-documented public interfaces
+- Semantic versioning for breaking changes
+- Comprehensive examples in documentation
+
+## Package Testing
+
+- Behavior-driven unit tests (Swift Testing preferred)
+- Use `makeSUT` pattern for test organization
+- Track memory leaks with `trackForMemoryLeaks`
+- Type-safe assertions (`#expect`, `#require`)
+- Use `waitUntil` for async/reactive testing
+
 ## CI/CD
 
 - GitHub Actions workflow runs tests on every push and pull request
-- Tests run on macOS latest with Swift 6.0
+- Tests run on macOS latest with Swift 5.5
