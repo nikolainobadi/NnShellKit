@@ -24,6 +24,7 @@ This package is built to be simple, reliable, and easy to test.
   - [Basic Usage](#basic-usage)
   - [Result Strategies](#result-strategies)
   - [MockCommand](#mockcommand)
+  - [Subclassing MockShell](#subclassing-mockshell)
 - [Xcode Integration](#xcode-integration)
 - [Error Handling](#error-handling)
 - [Architecture](#architecture)
@@ -38,7 +39,7 @@ NnShellKit provides a simple interface for bash commands and direct program exec
 
 Add the package
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.0.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.2.0")
 ```
 
 Add NnShellKit as a target dependency
@@ -153,6 +154,20 @@ let mock = MockShell(commands: [
     MockCommand(command: "/usr/bin/git status", output: "OK"),
     MockCommand(command: "/usr/bin/git push origin main", output: "Done")
 ])
+```
+
+### Subclassing MockShell
+
+MockShell is `open` and can be subclassed to add custom properties and methods:
+
+```swift
+class CustomMockShell: MockShell {
+    var customCallCount = 0
+
+    func trackCustomBehavior() {
+        customCallCount += 1
+    }
+}
 ```
 
 ## Xcode Integration
