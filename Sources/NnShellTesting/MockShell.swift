@@ -26,9 +26,9 @@ import NnShellKit
 /// let output = try mock.bash("git branch")  // Returns "main\nfeature"
 /// #expect(mock.executedCommands.first == "git branch")
 /// ```
-public class MockShell {
+open class MockShell {
     /// The strategy used for determining command results.
-    private var strategy: ResultStrategy
+    internal var strategy: ResultStrategy
 
     /// An array of all commands that have been executed, in order.
     /// For `run()` calls, this contains the program and args joined with spaces.
@@ -74,7 +74,7 @@ extension MockShell: Shell {
     public func run(_ program: String, args: [String]) throws -> String {
         let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
         executedCommands.append(command)
-        
+
         return try getResult(for: command, program: program)
     }
     
@@ -89,7 +89,7 @@ extension MockShell: Shell {
     @discardableResult
     public func bash(_ command: String) throws -> String {
         executedCommands.append(command)
-        
+
         return try getResult(for: command, program: "/bin/bash")
     }
     
@@ -182,8 +182,8 @@ public extension MockShell {
 }
 
 
-// MARK: - Private Methods
-private extension MockShell {
+// MARK: - Internal Methods
+internal extension MockShell {
     /// Gets the result for a command based on the current strategy.
     ///
     /// - Parameters:
@@ -226,7 +226,7 @@ private extension MockShell {
 
 
 // MARK: - Dependencies
-private extension MockShell {
+internal extension MockShell {
     /// Configuration for array-based results.
     struct ArrayResultsConfig {
         var results: [String]

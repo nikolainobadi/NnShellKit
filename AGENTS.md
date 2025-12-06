@@ -46,5 +46,9 @@
 - Use `waitUntil` for async/reactive testing
 
 ## Imports
-- @~/.codex/guidelines/shared-formatting-codex.md
-- @~/.codex/guidelines/ios_unit_testing_codex_instructions.md
+- Ask before reading `~/.codex/guidelines/shared/shared-formatting-codex.md` when working on Swift code.
+- Ask before reading `~/.codex/guidelines/testing/base_unit_testing_guidelines.md` when discussing or editing tests.
+
+## Resource Requests
+- Ask before reading `~/.codex/guidelines/shared/shared-formatting-codex.md` when working on Swift code.
+- Ask before reading `~/.codex/guidelines/testing/base_unit_testing_guidelines.md` when discussing or editing tests.
