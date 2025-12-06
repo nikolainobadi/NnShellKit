@@ -4,8 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Imports
 
-@~/.claude/guidelines/shared-formatting-claude.md
-@~/.claude/guidelines/ios_unit_testing_claude_instructions.md
+@~/.claude/guidelines/style/shared-formatting-claude.md
+@~/.claude/guidelines/testing/base_unit_testing_guidelines.md
 
 ## Project Overview
 
