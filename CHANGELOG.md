@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2025-12-05
+
+### Changed
+- MockShell class is now `open` and can be subclassed for custom testing implementations
+- MockShell internal strategy and helper methods are now accessible to subclasses
+
 ## [2.1.0] - 2025-11-21
 
 ### Added
