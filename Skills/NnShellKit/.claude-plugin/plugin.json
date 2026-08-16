@@ -1,0 +1,7 @@
+{
+  "name": "NnShellKit",
+  "description": "NnShellKit Swift API reference for shell command execution from Swift with protocol-based design, timeout support, and MockShell testing utilities.",
+  "author": {
+    "name": "Nikolai Nobadi"
+  }
+}

@@ -7,6 +7,45 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 @~/.claude/guidelines/style/shared-formatting-claude.md
 @~/.claude/guidelines/testing/base_unit_testing_guidelines.md
 
+## Skill Documentation
+
+`Skills/NnShellKit/` holds the published API-reference skill. It lives here — not in a separate
+skills repo — so the API and its documentation change in the same PR. It previously lived in the
+`nelix-swift-tools` marketplace, where nothing tied it to this package's releases.
+
+- **Any PR changing the public API must update `Skills/`.** The `Skill docs` workflow
+  (`.github/workflows/skill-docs.yml`) fails PRs that touch `public`/`open`/`package`
+  declarations in `Sources/` without touching `Skills/`. Apply the `skip-skill-check` label
+  when a PR genuinely changes no documented behavior (renames, reformatting, file moves).
+- **`Skills/NnShellKit/.claude-plugin/plugin.json` deliberately has no `version` field.**
+  Do not reintroduce one — the installer keys its cache by commit sha, and a hand-maintained
+  version number is exactly the stale-number problem this layout removes.
+- **SwiftPM ignores `Skills/`** — it is not a target and must not become one.
+- `Skills/NnShellKit/skills/NnShellKit/manifest.json` pins the sha and per-file hashes of the
+  `Sources/` state the docs describe. Regenerate it when the docs are updated.
+
+### Releasing
+
+The skill is consumed through the `nn-swift-skills` marketplace, pinned to a **tag** rather than
+tracking `main`. **Doc changes therefore reach consumers on release, not on merge** — a correction
+merged to `main` is invisible until the next tag. A release is two steps in two repos, but the
+second is automated:
+
+1. Tag this repo (no `v` prefix — matches the `2.2.0` convention) and push the tag.
+2. `.github/workflows/skill-ref-bump.yml` fires on that push, rewrites `ref` in
+   `nn-swift-skills/.claude-plugin/marketplace.json`, and opens a PR there. **Merge it.**
+
+If that automation is ever removed the bump becomes manual, and an unbumped `ref` serves the
+previous release's docs forever — nothing errors and nothing warns.
+
+The workflow authenticates with the repo secret **`MARKETPLACE_TOKEN`**: a fine-grained PAT named
+`nn-swift-skills-ref-bump`, scoped to `nn-swift-skills` only (Contents + Pull requests, read and
+write), **expiring 2027-08-15**. It is **shared with every other package repo** publishing to that
+marketplace, so rotating it means re-setting the secret in each of them, not just here.
+
+When it expires the workflow fails loudly on tag push — a red X, not silence. Treat that as "rotate
+the shared token", not "this repo's workflow is broken."
+
 ## Project Overview
 
 NnShellKit is a lightweight Swift package that provides a simple interface for executing shell commands from Swift code. It offers both direct program execution and bash command execution with proper error handling.
@@ -41,16 +80,19 @@ swift build
 # Run all tests
 swift test
 
-# Run tests for a specific suite
-swift test --filter "NnShell Tests"
-swift test --filter "MockShell Tests"
+# Run tests for a specific suite — the filter matches the type name, not the @Test description
+swift test --filter "NnShellTests"
+swift test --filter "MockShellTests"
 swift test --filter "ShellErrorTests"
 ```
+
+A filter that matches nothing runs 0 tests and still **exits 0**, so a typo reads as a green run.
+Check the reported test count.
 
 ### Test Structure
 Tests use Swift Testing framework (not XCTest) with the following patterns:
 - `@Test("description")` for individual tests
-- `@Suite("suite name")` for test groupings
+- Plain structs group the tests (`struct MockShellTests { ... }`) — no `@Suite` attribute is used
 - `#expect()` for assertions
 - `#expect(throws: ErrorType.self)` for error testing
 
@@ -67,10 +109,13 @@ The MockShell provides comprehensive testing capabilities:
 - **Convenience Methods** - `executedCommand(containing:)`, `commandCount(containing:)`, etc.
 
 ### Test File Organization
+All test files live in `Tests/NnShellKitTests/`:
 - `NnShellTests.swift` - Tests for the production NnShell implementation including timeout behavior
 - `MockShellTests.swift` - Tests for MockShell testing utility and result strategies
 - `ShellErrorTests.swift` - Tests for error handling and ShellError enum
-- `MockCommand.swift` - Support type for command-specific test behaviors
+
+`MockShell` and `MockCommand` are **not** test files — they ship to consumers from
+`Sources/NnShellTesting/`.
 
 ## Code Conventions
 
@@ -94,8 +139,8 @@ assert(mock.executedCommands.first == "git status")
 #### Command-specific results:
 ```swift
 let mock = MockShell(commands: [
-    MockCommand(command: "git status", result: .success("main branch")),
-    MockCommand(command: "git push", result: .failure(code: 1, output: "error"))
+    MockCommand(command: "git status", output: "main branch"),
+    MockCommand(command: "git push", error: .failed(program: "/bin/bash", code: 1, output: "error"))
 ])
 try mock.bash("git status")  // Returns "main branch"
 ```

@@ -35,6 +35,11 @@ This package is built to be simple, reliable, and easy to test.
 
 NnShellKit provides a simple interface for bash commands and direct program execution, real time streaming, combined stdout and stderr capture, configurable timeouts, predictable testing utilities, and protocol oriented design.
 
+> **Looking for the complete API reference?** This README is a guided tour of the common
+> paths. Every public symbol — including the MockShell recording formats and result
+> strategies not shown here — is documented in [`Skills/NnShellKit`](Skills/NnShellKit),
+> which lives in this repo so it changes in the same PR as the API it describes.
+
 ## Installation
 
 Add the package
