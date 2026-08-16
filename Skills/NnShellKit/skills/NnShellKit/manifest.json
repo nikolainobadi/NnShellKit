@@ -1,0 +1,25 @@
+{
+  "manifestVersion": 1,
+  "skillName": "NnShellKit",
+  "packagePath": ".",
+  "git": {
+    "sha": "cd8ae6163e24243ab5eff171432da82d1c594f2c",
+    "tag": "2.2.0"
+  },
+  "scannedAt": "2026-08-16T00:00:00Z",
+  "files": {
+    "Sources/NnShellKit/Shell.swift": "a66e7b338a9fc26abcb67b6a1fe959bbfdf53e8fa6fb23538f0870d35e6a3c4e",
+    "Sources/NnShellKit/NnShell.swift": "d4559a9b0dd84ea0edc8b1ae21ead249af5c0ca57957aced854a05ec35e47ca5",
+    "Sources/NnShellKit/ShellError.swift": "dad360782a240db5ab25924bdffad94d4aa2f97c67c35f12cdf79ae4dbdb9c7d",
+    "Sources/NnShellTesting/MockCommand.swift": "e1b229bdd19e3a1b6299b19e959f4b49370960c6d6e9b5f0e81eb494d61a8ac5",
+    "Sources/NnShellTesting/MockShell.swift": "cbfc67bbe76783c629107d71f8c4a8be6a26ac738d647514cdedd6e8b7413633"
+  },
+  "types": {
+    "Shell":       { "file": "Sources/NnShellKit/Shell.swift",          "doc": "ApiReference.md",     "anchor": "Shell",       "conforms": [] },
+    "NnShell":     { "file": "Sources/NnShellKit/NnShell.swift",        "doc": "ApiReference.md",     "anchor": "NnShell",     "conforms": ["Shell"] },
+    "ShellError":  { "file": "Sources/NnShellKit/ShellError.swift",     "doc": "ApiReference.md",     "anchor": "ShellError",  "conforms": [] },
+    "MockShell":   { "file": "Sources/NnShellTesting/MockShell.swift",  "doc": "TestingReference.md", "anchor": "MockShell",   "conforms": ["Shell"] },
+    "MockCommand": { "file": "Sources/NnShellTesting/MockCommand.swift", "doc": "TestingReference.md", "anchor": "MockCommand", "conforms": [] },
+    "MockResult":  { "file": "Sources/NnShellTesting/MockCommand.swift", "doc": "TestingReference.md", "anchor": "MockResult",  "conforms": [] }
+  }
+}

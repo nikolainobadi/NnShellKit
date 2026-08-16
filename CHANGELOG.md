@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-08-16
+
+Documentation and tooling release. No public API changes.
+
+### Added
+- The `NnShellKit` skill now lives in this repo at `Skills/NnShellKit`, so the API reference changes in the same PR as the API it documents. It is published through the `nn-swift-skills` marketplace, pinned to this tag
+- `.github/workflows/skill-docs.yml` fails any PR that changes a `public`/`open`/`package` declaration under `Sources/` without touching `Skills/`. Waive with the `skip-skill-check` label when a PR changes no documented behavior
+- `.github/workflows/skill-ref-bump.yml` bumps the marketplace's pinned `ref` on tag push, so released documentation always matches a shipped version
+
+### Changed
+- Point the README at the bundled skill as the authoritative API reference for symbols the README does not cover
+- Correct the `MockCommand` examples in `CLAUDE.md`, which used a `result:` parameter that is not part of the API — the initializers are `init(command:output:)` and `init(command:error:)`
+- Correct the `swift test --filter` examples in `CLAUDE.md`, which named suites that match nothing and therefore ran zero tests while exiting 0
+
 ## [2.2.0] - 2025-12-05
 
 ### Changed
