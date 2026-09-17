@@ -13,10 +13,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 skills repo — so the API and its documentation change in the same PR. It previously lived in the
 `nelix-swift-tools` marketplace, where nothing tied it to this package's releases.
 
-- **Any PR changing the public API must update `Skills/`.** The `Skill docs` workflow
-  (`.github/workflows/skill-docs.yml`) fails PRs that touch `public`/`open`/`package`
-  declarations in `Sources/` without touching `Skills/`. Apply the `skip-skill-check` label
-  when a PR genuinely changes no documented behavior (renames, reformatting, file moves).
+- **Any PR changing the public API must update `Skills/`.** Nothing enforces this in CI, so
+  check it by hand whenever a PR touches `public`/`open`/`package` declarations in `Sources/`.
 - **`Skills/NnShellKit/.claude-plugin/plugin.json` deliberately has no `version` field.**
   Do not reintroduce one — the installer keys its cache by commit sha, and a hand-maintained
   version number is exactly the stale-number problem this layout removes.
