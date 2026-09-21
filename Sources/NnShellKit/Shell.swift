@@ -6,7 +6,7 @@
 //
 
 /// A protocol defining the interface for executing shell commands.
-public protocol Shell {
+public protocol Shell: Sendable {
     /// Executes a bash command string.
     ///
     /// This method runs the command through `/bin/bash -c`, enabling the use of

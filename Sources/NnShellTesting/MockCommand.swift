@@ -8,7 +8,7 @@
 import NnShellKit
 
 /// Represents a specific mock command with its expected result.
-public struct MockCommand {
+public struct MockCommand: Sendable {
     public let command: String
     public let result: MockResult
     
@@ -37,7 +37,7 @@ public struct MockCommand {
 // MARK: - Dependencies
 public extension MockCommand {
     /// Represents the result of a mock command execution.
-    enum MockResult {
+    enum MockResult: Sendable {
         case success(String)
         case failure(ShellError)
     }
