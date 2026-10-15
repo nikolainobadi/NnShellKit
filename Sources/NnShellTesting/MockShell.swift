@@ -5,6 +5,7 @@
 //  Created by Nikolai Nobadi on 8/16/25.
 //
 
+import os
 import NnShellKit
 
 /// A mock implementation of Shell for testing purposes.
@@ -26,14 +27,13 @@ import NnShellKit
 /// let output = try mock.bash("git branch")  // Returns "main\nfeature"
 /// #expect(mock.executedCommands.first == "git branch")
 /// ```
-open class MockShell {
-    /// The strategy used for determining command results.
-    internal var strategy: ResultStrategy
-
-    /// An array of all commands that have been executed, in order.
-    /// For `run()` calls, this contains the program and args joined with spaces.
-    /// For `bash()` calls, this contains the exact command string.
-    public private(set) var executedCommands: [String] = []
+public struct MockShell: Sendable {
+    /// Shared, lock-guarded state, so every copy of the mock observes the same recording.
+    ///
+    /// Recording a command and resolving its result happen in one critical section, so the Nth
+    /// recorded command always receives the Nth result, even when callers run concurrently.
+    /// The lock is never held across a suspension point.
+    private let state: OSAllocatedUnfairLock<State>
     
     // MARK: - Initializers
 
@@ -45,7 +45,7 @@ open class MockShell {
     ///   - shouldThrowErrorOnFinal: If true, throws `ShellError.failed` when the results array is exhausted.
     ///                             If false, returns empty string when no more results. Defaults to false.
     public init(results: [String] = [], shouldThrowErrorOnFinal: Bool = false) {
-        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal))
+        self.state = OSAllocatedUnfairLock(initialState: State(strategy: .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: shouldThrowErrorOnFinal)), executedCommands: []))
     }
 
     /// Creates a new MockShell instance with command-based results.
@@ -53,7 +53,14 @@ open class MockShell {
     /// - Parameter commands: An array of MockCommand instances defining specific command behaviors.
     ///                      Commands not found in the array will return empty string and be logged.
     public init(commands: [MockCommand]) {
-        self.strategy = .commandMap(commands)
+        self.state = OSAllocatedUnfairLock(initialState: State(strategy: .commandMap(commands), executedCommands: []))
+    }
+
+    /// An array of all commands that have been executed, in order.
+    /// For `run()` calls, this contains the program and args joined with spaces.
+    /// For `bash()` calls, this contains the exact command string.
+    public var executedCommands: [String] {
+        state.withLock { $0.executedCommands }
     }
 }
 
@@ -73,9 +80,8 @@ extension MockShell: Shell {
     @discardableResult
     public func run(_ program: String, args: [String]) throws -> String {
         let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
-        executedCommands.append(command)
 
-        return try getResult(for: command, program: program)
+        return try execute(command: command, program: program)
     }
     
     /// Simulates executing a bash command string.
@@ -88,9 +94,7 @@ extension MockShell: Shell {
     /// - Throws: `ShellError.failed` based on the strategy configuration.
     @discardableResult
     public func bash(_ command: String) throws -> String {
-        executedCommands.append(command)
-
-        return try getResult(for: command, program: "/bin/bash")
+        return try execute(command: command, program: "/bin/bash")
     }
     
     /// Simulates executing a program with streaming output.
@@ -104,10 +108,7 @@ extension MockShell: Shell {
     ///   - args: An array of arguments to pass to the program.
     /// - Throws: `ShellError.failed` based on the strategy configuration.
     public func runAndPrint(_ program: String, args: [String]) throws {
-        let command = args.isEmpty ? program : "\(program) \(args.joined(separator: " "))"
-        executedCommands.append(command)
-
-        _ = try getResult(for: command, program: program)
+        _ = try run(program, args: args)
     }
 
     /// Simulates executing a bash command with streaming output.
@@ -138,8 +139,7 @@ public extension MockShell {
     ///
     /// - Parameter results: New results queue to use. Defaults to empty array.
     func reset(results: [String] = []) {
-        self.strategy = .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: false))
-        self.executedCommands = []
+        reset(strategy: .arrayResults(ArrayResultsConfig(results: results, shouldThrowErrorOnFinal: false)))
     }
 
     /// Resets the mock shell state for reuse between tests with command results.
@@ -148,8 +148,7 @@ public extension MockShell {
     ///
     /// - Parameter commands: New command mappings to use.
     func reset(commands: [MockCommand]) {
-        self.strategy = .commandMap(commands)
-        self.executedCommands = []
+        reset(strategy: .commandMap(commands))
     }
     
     /// Checks if any executed command contains the given substring.
@@ -176,51 +175,9 @@ public extension MockShell {
     /// - Returns: True if the command at the index matches exactly, false otherwise.
     ///           Also returns false if the index is out of bounds.
     func verifyCommand(at index: Int, equals command: String) -> Bool {
-        guard index < executedCommands.count else { return false }
-        return executedCommands[index] == command
-    }
-}
-
-
-// MARK: - Internal Methods
-internal extension MockShell {
-    /// Gets the result for a command based on the current strategy.
-    ///
-    /// - Parameters:
-    ///   - command: The command to get a result for.
-    ///   - program: The program being executed (for error reporting).
-    /// - Returns: The result for the command.
-    /// - Throws: ShellError if the strategy dictates an error should be thrown.
-    func getResult(for command: String, program: String) throws -> String {
-        switch strategy {
-        case .arrayResults(var config):
-            if !config.results.isEmpty {
-                let result = config.results.removeFirst()
-                strategy = .arrayResults(config) // Update the strategy with modified config
-                return result
-            }
-            if config.shouldThrowErrorOnFinal {
-                throw ShellError.failed(program: program, code: 1, output: "Mock error on final command")
-            }
-            return ""
-
-        case .commandMap(let commands):
-            if let matchingCommand = commands.first(where: { $0.command == command }) {
-                switch matchingCommand.result {
-                case .success(let output):
-                    return output
-                case .failure(let error):
-                    throw error
-                }
-            }
-
-            // No result found - log the unmapped command and return empty string
-            print("[MockShell] No result mapped for command: '\(command)'")
-            return ""
-
-        case .alwaysThrowError:
-            throw ShellError.failed(program: program, code: 1, output: "Mock error")
-        }
+        let commands = executedCommands
+        guard index < commands.count else { return false }
+        return commands[index] == command
     }
 }
 
@@ -238,5 +195,65 @@ internal extension MockShell {
         case arrayResults(ArrayResultsConfig)
         case commandMap([MockCommand])
         case alwaysThrowError
+    }
+
+    /// The mutable state guarded by `MockShell`'s lock.
+    struct State {
+        var strategy: ResultStrategy
+        var executedCommands: [String]
+    }
+}
+
+
+// MARK: - Private Methods
+private extension MockShell {
+    func reset(strategy: ResultStrategy) {
+        state.withLock { state in
+            state.strategy = strategy
+            state.executedCommands = []
+        }
+    }
+
+    /// Records the command and returns the result the current strategy dictates.
+    ///
+    /// - Parameters:
+    ///   - command: The command to record and resolve.
+    ///   - program: The program being executed (for error reporting).
+    /// - Returns: The result for the command.
+    /// - Throws: ShellError if the strategy dictates an error should be thrown.
+    func execute(command: String, program: String) throws -> String {
+        try state.withLock { state in
+            state.executedCommands.append(command)
+
+            switch state.strategy {
+            case .arrayResults(var config):
+                if !config.results.isEmpty {
+                    let result = config.results.removeFirst()
+                    state.strategy = .arrayResults(config) // Update the strategy with modified config
+                    return result
+                }
+                if config.shouldThrowErrorOnFinal {
+                    throw ShellError.failed(program: program, code: 1, output: "Mock error on final command")
+                }
+                return ""
+
+            case .commandMap(let commands):
+                if let matchingCommand = commands.first(where: { $0.command == command }) {
+                    switch matchingCommand.result {
+                    case .success(let output):
+                        return output
+                    case .failure(let error):
+                        throw error
+                    }
+                }
+
+                // No result found - log the unmapped command and return empty string
+                print("[MockShell] No result mapped for command: '\(command)'")
+                return ""
+
+            case .alwaysThrowError:
+                throw ShellError.failed(program: program, code: 1, output: "Mock error")
+            }
+        }
     }
 }

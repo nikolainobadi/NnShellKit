@@ -5,6 +5,7 @@
 //  Created by Nikolai Nobadi on 8/16/25.
 //
 
+import os
 import Foundation
 
 /// A concrete implementation of the Shell protocol using Foundation's Process API.
@@ -96,7 +97,7 @@ public struct NnShell: Shell {
         p.standardError = pipe
 
         let reader = pipe.fileHandleForReading
-        var data = Data()
+        let buffer = OSAllocatedUnfairLock(initialState: Data())
         let group = DispatchGroup()
         group.enter()
 
@@ -105,7 +106,7 @@ public struct NnShell: Shell {
             while true {
                 let chunk = reader.availableData
                 if chunk.isEmpty { break }
-                data.append(chunk)
+                buffer.withLock { $0.append(chunk) }
             }
             group.leave()
         }
@@ -123,7 +124,7 @@ public struct NnShell: Shell {
                     _ = kill(p.processIdentifier, SIGKILL)
                 }
                 _ = group.wait(timeout: .now() + 1)
-                let output = String(decoding: data, as: UTF8.self)
+                let output = String(decoding: buffer.withLock { $0 }, as: UTF8.self)
                 throw ShellError.failed(program: program, code: 124, output: output)
             }
         } else {
@@ -131,7 +132,7 @@ public struct NnShell: Shell {
         }
 
         group.wait()
-        let output = String(decoding: data, as: UTF8.self)
+        let output = String(decoding: buffer.withLock { $0 }, as: UTF8.self)
 
         guard p.terminationStatus == 0, p.terminationReason == .exit else {
             throw ShellError.failed(program: program, code: p.terminationStatus, output: output)

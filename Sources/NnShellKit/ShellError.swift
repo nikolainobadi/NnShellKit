@@ -6,7 +6,7 @@
 //
 
 /// An error that occurs when executing shell commands.
-public enum ShellError: Error {
+public enum ShellError: Error, Sendable {
     /// Indicates that a command failed with a non-zero exit code.
     ///
     /// - Parameters:

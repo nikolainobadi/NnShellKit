@@ -520,6 +520,36 @@ extension MockShellTests {
 }
 
 
+// MARK: - Concurrency
+extension MockShellTests {
+    @Test("Pairs the Nth recorded command with the Nth result under concurrency")
+    func pairsRecordedCommandsWithResultsUnderConcurrency() async {
+        let results = (0..<100).map { "r\($0)" }
+        let sut = makeSUT(results: results, commands: [], shouldThrowErrorOnFinal: false)
+
+        let outputs = await withTaskGroup(of: (String, String).self) { group in
+            for index in 0..<100 {
+                group.addTask {
+                    let command = "c\(index)"
+                    let output = (try? sut.bash(command)) ?? ""
+                    return (command, output)
+                }
+            }
+
+            var outputs: [String: String] = [:]
+            for await (command, output) in group {
+                outputs[command] = output
+            }
+            return outputs
+        }
+
+        #expect(sut.executedCommands.count == 100)
+        for (position, command) in sut.executedCommands.enumerated() {
+            #expect(outputs[command] == "r\(position)")
+        }
+    }
+}
+
 // MARK: - SUT
 private extension MockShellTests {
     func makeSUT(results: [String] = [], commands: [MockCommand] = [], shouldThrowErrorOnFinal: Bool = false) -> MockShell {
