@@ -1,7 +1,7 @@
 # NnShellKit
 
 ![Build Status](https://github.com/nikolainobadi/NnShellKit/actions/workflows/ci.yml/badge.svg)
-![Swift Version](https://badgen.net/badge/swift/5.5%2B/purple)
+![Swift Version](https://badgen.net/badge/swift/5.9%2B/purple)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -20,11 +20,13 @@ This package is built to be simple, reliable, and easy to test.
   - [Direct Program Execution](#direct-program-execution)
   - [Streaming Output](#streaming-output)
   - [Timeouts](#timeouts)
+- [Using AsyncNnShell](#using-asyncnnshell)
 - [Using MockShell](#using-mockshell)
   - [Basic Usage](#basic-usage)
   - [Result Strategies](#result-strategies)
   - [MockCommand](#mockcommand)
-  - [Subclassing MockShell](#subclassing-mockshell)
+  - [Sharing MockShell](#sharing-mockshell)
+  - [Async Mocking](#async-mocking)
 - [Xcode Integration](#xcode-integration)
 - [Error Handling](#error-handling)
 - [Architecture](#architecture)
@@ -33,18 +35,20 @@ This package is built to be simple, reliable, and easy to test.
 
 ## Overview
 
-NnShellKit provides a simple interface for bash commands and direct program execution, real time streaming, combined stdout and stderr capture, configurable timeouts, predictable testing utilities, and protocol oriented design.
+NnShellKit provides a simple interface for bash commands and direct program execution, real time streaming, combined stdout and stderr capture, configurable timeouts, cancellable async execution, predictable testing utilities, and protocol oriented design.
 
-> **Looking for the complete API reference?** This README is a guided tour of the common
-> paths. Every public symbol — including the MockShell recording formats and result
-> strategies not shown here — is documented in [`Skills/NnShellKit`](Skills/NnShellKit),
+> **Looking for more API details?** This README is a guided tour of the common
+> paths. Further details — including the MockShell recording formats and result
+> strategies not shown here — are documented in [`Skills/NnShellKit`](Skills/NnShellKit),
 > which lives in this repo so it changes in the same PR as the API it describes.
 
 ## Installation
 
+Requires Swift 5.9 or later and macOS 13 or later.
+
 Add the package
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.2.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.3.0")
 ```
 
 Add NnShellKit as a target dependency
@@ -75,9 +79,13 @@ try shell.runAndPrint("/usr/bin/swift", args: ["build"])
 - `bash` uses `/bin/bash -c` for pipes, redirects, env variables.
 - `run` executes programs directly with no shell overhead.
 - Streaming methods print directly to stdout and stderr.
-- Timeout is available on captured output commands.
+- Timeout is available on captured output commands in `NnShell`.
+- `AsyncNnShell` captures output with `async`/`await` and supports task cancellation.
+- `Shell` and `AsyncShell` require `Sendable` conformance.
 
 ## API Summary
+
+Synchronous `Shell` methods:
 
 | Method                     | Captures output | Streams output | Timeout support |
 |---------------------------|-----------------|----------------|-----------------|
@@ -118,6 +126,22 @@ try shell.bash("sleep 30")
 ```
 
 Timeout behavior includes terminate, kill signal fallback, and partial output capture in the error.
+
+## Using AsyncNnShell
+
+`AsyncNnShell` implements `AsyncShell` with async `bash` and `run` methods. Both capture combined stdout and stderr and return trimmed output. It has no streaming methods or timeout parameter.
+
+In an async context:
+
+```swift
+import NnShellKit
+
+let shell = AsyncNnShell()
+let output = try await shell.run("/bin/echo", args: ["Hello"])
+let status = try await shell.bash("git status")
+```
+
+Cancelling the awaiting task requests termination of the command's process group with `SIGTERM`, escalating to `SIGKILL` after a grace period if needed. Cancellation throws `CancellationError`; non-zero exits throw `ShellError.failed`.
 
 ## Using MockShell
 
@@ -161,19 +185,26 @@ let mock = MockShell(commands: [
 ])
 ```
 
-### Subclassing MockShell
+### Sharing MockShell
 
-MockShell is `open` and can be subclassed to add custom properties and methods:
+`MockShell` is a `Sendable` struct and cannot be subclassed. Copies share the same recorded commands and result queue, protected by a lock. Use composition when adding custom behavior.
+
+### Async Mocking
+
+`MockAsyncShell` implements `AsyncShell` with the same FIFO results and command mappings as `MockShell`. Its FIFO initializer requires an explicit `shouldThrowErrorOnFinal` argument.
+
+In an async context:
 
 ```swift
-class CustomMockShell: MockShell {
-    var customCallCount = 0
+import NnShellKit
+import NnShellTesting
 
-    func trackCustomBehavior() {
-        customCallCount += 1
-    }
-}
+let mock = MockAsyncShell(results: ["clean"], shouldThrowErrorOnFinal: false)
+let output = try await mock.bash("git status") // Returns "clean"
+let commands = mock.executedCommands // ["git status"]
 ```
+
+A call from an already-cancelled task throws `CancellationError` without recording a command.
 
 ## Xcode Integration
 
@@ -202,9 +233,9 @@ do {
 
 ## Architecture
 
-- Shell protocol defines the interface.
-- NnShell is the production implementation.
-- MockShell and MockCommand support testing.
+- Shell and AsyncShell define the synchronous and asynchronous interfaces.
+- NnShell and AsyncNnShell are the production implementations.
+- MockShell, MockAsyncShell, and MockCommand support testing.
 - ShellError includes exit details.
 
 ## Contributing

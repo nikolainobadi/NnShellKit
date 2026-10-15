@@ -7,10 +7,10 @@ Shell command execution from Swift with protocol-based design, timeout support, 
 <!-- type:Shell -->
 ## Protocol: Shell
 
-The central abstraction for shell command execution. Depend on this protocol for testability.
+The central abstraction for shell command execution. Depend on this protocol for synchronous execution and testability. Conforming types must satisfy `Sendable`; these methods still block the caller. Use `AsyncShell` for cancellable async execution.
 
 ```swift
-public protocol Shell {
+public protocol Shell: Sendable {
     @discardableResult func bash(_ command: String) throws -> String
     @discardableResult func run(_ program: String, args: [String]) throws -> String
     func runAndPrint(_ program: String, args: [String]) throws
@@ -122,13 +122,63 @@ try timedShell.runAndPrint(bash: "swift test")
 
 ---
 
+<!-- type:AsyncShell -->
+## Protocol: AsyncShell
+
+Import `NnShellKit`. Use this separate protocol for async captured output and task cancellation; use `Shell` for synchronous execution and streaming. Both protocols require `Sendable` conformers.
+
+```swift
+public protocol AsyncShell: Sendable {
+    @discardableResult func bash(_ command: String) async throws -> String
+    @discardableResult func run(_ program: String, args: [String]) async throws -> String
+}
+```
+
+`AsyncNnShell` is the production implementation; `MockAsyncShell` in `NnShellTesting` supplies configured results for tests. Neither async type provides `runAndPrint`.
+<!-- /type:AsyncShell -->
+
+---
+
+<!-- type:AsyncNnShell -->
+## Struct: AsyncNnShell
+
+```swift
+public struct AsyncNnShell: AsyncShell
+```
+
+Initialize with `AsyncNnShell()`. There is no timeout parameter. `bash(_:)` delegates to `run("/bin/bash", args: ["-c", command])`; direct execution requires an absolute program path.
+
+```swift
+import NnShellKit
+
+func currentBranch(using shell: any AsyncShell) async throws -> String {
+    try await shell.run("/usr/bin/git", args: ["branch", "--show-current"])
+}
+```
+
+### Output and Errors
+
+- Captures stdout and stderr together, trimming whitespace and newlines on success.
+- Non-zero exit or abnormal termination throws `ShellError.failed` with the program path, termination status, and raw, untrimmed output.
+- Launch errors propagate directly from Foundation rather than being wrapped in `ShellError`.
+- Cancellation throws `CancellationError`, without a captured-output payload. Handle it separately from command failure.
+
+### Cancellation
+
+Cancel the task awaiting the command. A task already cancelled before launch does not spawn a process. For a running command, cancellation sends SIGTERM to its process group when the process leads that group, otherwise to the process itself. Anything still alive in that target receives SIGKILL after a one-second grace period.
+
+Descendants that leave the process group can survive cancellation. Cancellation bounds the wait for remaining output, so an escaped descendant holding the output pipe open does not indefinitely delay the cancellation error. Do not treat the error as proof that every descendant has exited.
+<!-- /type:AsyncNnShell -->
+
+---
+
 <!-- type:ShellError -->
 ## Enum: ShellError
 
 Error type thrown when a shell command fails.
 
 ```swift
-public enum ShellError: Error {
+public enum ShellError: Error, Sendable {
     case failed(program: String, code: Int32, output: String)
 }
 ```

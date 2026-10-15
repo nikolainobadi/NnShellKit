@@ -46,27 +46,33 @@ the shared token", not "this repo's workflow is broken."
 
 ## Project Overview
 
-NnShellKit is a lightweight Swift package that provides a simple interface for executing shell commands from Swift code. It offers both direct program execution and bash command execution with proper error handling.
+NnShellKit is a lightweight Swift package that provides a simple interface for executing shell commands from Swift code. It offers both direct program execution and bash command execution with proper error handling, through synchronous and cancellable async interfaces. `Package.swift` requires Swift tools 5.9+ and macOS 13+.
 
 ## Core Architecture
 
-The package follows a protocol-oriented design with four main components:
+The package follows a protocol-oriented design with synchronous and async shell interfaces:
 
 ### Shell Protocol
-The central abstraction that defines four methods:
+The synchronous abstraction requires `Sendable` conformance and defines four methods:
 - `bash(_ command: String)` - Executes bash commands with full shell features (pipes, redirects, etc.), returns captured output
 - `run(_ program: String, args: [String])` - Executes programs directly without shell interpretation, returns captured output
 - `runAndPrint(_ program: String, args: [String])` - Executes programs and streams output directly to stdout/stderr (no capture)
 - `runAndPrint(bash command: String)` - Executes bash commands and streams output directly to stdout/stderr (no capture)
 
+### AsyncShell Protocol
+The async abstraction also requires `Sendable` conformance and defines `bash(_:)` and `run(_:args:)` as `async throws` methods returning captured output. It has no streaming methods or timeout parameter.
+
 ### Implementation Types
 - **NnShell** - Production implementation using Foundation's Process API with timeout support
-- **MockShell** - Test implementation with flexible result strategies (array-based or command-specific)
+- **AsyncNnShell** - Production async implementation using the internal `ProcessRunner` for process execution and task cancellation
+- **MockShell** - `Sendable` struct with flexible result strategies (array-based or command-specific); copies share locked state, and subclassing is unavailable
+- **MockAsyncShell** - Async test implementation wrapping `MockShell`; checks task cancellation before recording a command or consuming a result
 - **MockCommand** - Defines specific command behaviors for precise test control
 
 ### Error Handling
 - **ShellError.failed** - Contains program path, exit code, and combined stdout/stderr output
 - Both stdout and stderr are captured to a single stream and trimmed
+- Async execution throws `CancellationError` for task cancellation
 
 ## Development Commands
 
@@ -98,7 +104,7 @@ Tests use Swift Testing framework (not XCTest) with the following patterns:
 
 ### MockShell Features (v2.0.0)
 The MockShell provides comprehensive testing capabilities:
-- **Command Recording** - All executed commands are stored in `executedCommands` array
+- **Command Recording** - All executed commands are stored in `executedCommands` array; recording and result consumption happen under one lock so the Nth recorded command receives the Nth FIFO result even with concurrent callers
 - **Result Strategies**:
   - Array-based: Predefined results returned in FIFO order via `results` parameter
   - Command-based: Specific results mapped to commands using `MockCommand` instances
@@ -109,10 +115,12 @@ The MockShell provides comprehensive testing capabilities:
 ### Test File Organization
 All test files live in `Tests/NnShellKitTests/`:
 - `NnShellTests.swift` - Tests for the production NnShell implementation including timeout behavior
-- `MockShellTests.swift` - Tests for MockShell testing utility and result strategies
+- `AsyncNnShellTests.swift` - Tests for async execution, errors, and cancellation of processes and process groups
+- `MockShellTests.swift` - Tests for MockShell testing utility, result strategies, and concurrent command/result pairing
+- `MockAsyncShellTests.swift` - Tests for async mock results, recording, and cancellation before execution
 - `ShellErrorTests.swift` - Tests for error handling and ShellError enum
 
-`MockShell` and `MockCommand` are **not** test files — they ship to consumers from
+`MockShell`, `MockAsyncShell`, and `MockCommand` are **not** test files — they ship to consumers from
 `Sources/NnShellTesting/`.
 
 ## Code Conventions
@@ -123,7 +131,7 @@ All Swift files use "Nikolai Nobadi" in the "Created by" comment header.
 ### API Design
 - Both `run()` and `bash()` methods are marked `@discardableResult`
 - Combined stdout/stderr output with automatic trimming
-- Shell protocol enables dependency injection for testing
+- `Shell` and `AsyncShell` enable dependency injection for testing and require conforming types to be `Sendable`
 
 ### MockShell Usage Patterns (v2.0.0)
 
@@ -151,7 +159,8 @@ try mock.bash("git status")  // Returns "main branch"
 - Output is read asynchronously to prevent truncation issues
 - `runAndPrint` methods stream output directly to console using `FileHandle.standardOutput` and `FileHandle.standardError`
 - `runAndPrint` methods wait indefinitely for process completion (no timeout support)
-- MockShell uses strategy pattern for flexible result handling
+- AsyncNnShell cancellation signals the process group when the launched process leads it, otherwise the process itself, with `SIGTERM` and a `SIGKILL` fallback after one second. Processes that escape the group are outside that signal target; cancellation bounds the output-drain wait to one second.
+- MockShell uses strategy pattern for flexible result handling; copies share recordings, result consumption, and resets
 - MockShell `runAndPrint` methods record commands and consume results from the strategy without returning output
 - MockShell handles empty arguments correctly (no trailing space)
 - Error tests should expect `NSError` for missing executables, `ShellError` for command failures

@@ -1,6 +1,6 @@
 ---
 name: NnShellKit
-description: NnShellKit Swift API reference for shell command execution. USE WHEN importing NnShellKit, executing shell commands from Swift, using Shell protocol, NnShell, MockShell, bash commands, run process, runAndPrint, shell error handling.
+description: NnShellKit Swift API reference for shell command execution. USE WHEN importing NnShellKit, executing shell commands from Swift, using Shell or AsyncShell protocols, NnShell, AsyncNnShell, MockShell, MockAsyncShell, bash commands, run process, runAndPrint, shell error handling.
 user-invocable: true
 ---
 
@@ -10,7 +10,7 @@ Lightweight Swift package for executing shell commands with proper error handlin
 
 **Dependency:** `https://github.com/nikolainobadi/NnShellKit.git`
 **Products:** `NnShellKit` (production), `NnShellTesting` (test helpers)
-**Platforms:** macOS | **Swift tools:** 5.5
+**Platforms:** macOS 13+ | **Swift tools:** 5.9
 <!-- package_path: . --> <!-- this skill lives inside the NnShellKit repo it documents -->
 
 > This skill lives in the NnShellKit repo under `Skills/NnShellKit/`. Any PR changing the
@@ -20,20 +20,23 @@ Lightweight Swift package for executing shell commands with proper error handlin
 
 | File | Purpose | Load When |
 |------|---------|-----------|
-| `ApiReference.md` | Shell protocol, NnShell, ShellError — full API with behavioral docs | Implementing shell commands, choosing between run/bash/runAndPrint, handling errors |
-| `TestingReference.md` | MockShell, MockCommand — test helpers with complete examples | Writing tests for code that uses Shell protocol |
+| `ApiReference.md` | Shell / AsyncShell protocols, NnShell / AsyncNnShell, ShellError — full API with behavioral docs | Implementing shell commands, choosing synchronous or async execution, handling errors and cancellation |
+| `TestingReference.md` | MockShell, MockAsyncShell, MockCommand — test helpers with complete examples | Writing tests for code that uses Shell or AsyncShell |
 
 ## Quick Reference
 
 ### Production
-- **Shell** — Protocol defining `bash()`, `run()`, `runAndPrint()`, `runAndPrint(bash:)` methods
+- **Shell** — Sendable synchronous protocol defining `bash()`, `run()`, `runAndPrint()`, `runAndPrint(bash:)` methods
 - **NnShell** — Production implementation using Foundation Process with optional timeout
+- **AsyncShell** — Sendable protocol with async `bash()` and `run()` for captured output
+- **AsyncNnShell** — Cancellable async implementation; no streaming methods or timeout initializer
 - **ShellError** — Error enum with `.failed(program:code:output:)` case
 - `bash()` delegates to `run("/bin/bash", args: ["-c", command])` — use for pipes, redirects, env vars
 - `run()` executes programs directly — use for discrete arguments without shell interpretation
 
 ### Testing
-- **MockShell** — Open class conforming to Shell with array-based or command-specific result strategies
+- **MockShell** — Sendable struct conforming to Shell with array-based or command-specific result strategies
+- **MockAsyncShell** — Sendable AsyncShell mock with the same recording and result strategies
 - **MockCommand** — Defines specific command-to-result mappings with `.success`/`.failure` outcomes
 - Use `executedCommands` array and convenience methods to verify command execution
 

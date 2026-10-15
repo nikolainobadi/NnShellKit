@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-10-15
+
+### Added
+- `AsyncShell` and `AsyncNnShell` provide async `bash(_:)` and `run(_:args:)` methods with captured stdout/stderr and task cancellation support; cancellation signals the command's process group when available and throws `CancellationError`
+- `MockAsyncShell` provides queued or command-mapped results and command recording for async tests, rejecting calls from already-cancelled tasks without recording them
+- `ShellError`, `MockCommand`, and `MockCommand.MockResult` now conform to `Sendable`
+
+### Changed
+- **BREAKING**: The package now requires Swift 5.9 and macOS 13 or later; update your toolchain and macOS deployment target before upgrading
+- **BREAKING**: `Shell` now inherits `Sendable`; update custom conforming types to satisfy Swift's sendability requirements
+- **BREAKING**: `MockShell` is now a `Sendable` struct instead of an open class; replace subclasses with custom `Shell` implementations that compose a `MockShell`. Copies share command recordings and queued results
+
+### Fixed
+- `MockShell` now safely pairs recorded commands with queued results during concurrent calls
+- Prevent concurrent access to `NnShell`'s captured output buffer when collecting timeout errors
+
 ## [2.2.1] - 2026-08-16
 
 Documentation and tooling release. No public API changes.

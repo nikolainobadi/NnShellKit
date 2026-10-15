@@ -2,12 +2,12 @@
 
 ## Project Structure & Module Organization
 - `Package.swift` declares two libraries: `NnShellKit` (production shell execution) and `NnShellTesting` (testing utilities), plus the `NnShellKitTests` suite.
-- `Sources/NnShellKit/` holds the public API (`Shell`, `NnShell`, `ShellError`) for running commands and handling timeouts.
-- `Sources/NnShellTesting/` provides deterministic helpers (`MockShell`, `MockCommand`) for unit tests and examples.
+- `Sources/NnShellKit/` holds the public API (`Shell`, `NnShell`, `AsyncShell`, `AsyncNnShell`, `ShellError`) for synchronous execution with timeouts and cancellable async execution. Both shell protocols require `Sendable` conformance.
+- `Sources/NnShellTesting/` provides deterministic helpers (`MockShell`, `MockAsyncShell`, `MockCommand`) for unit tests and examples. `MockShell` is a `Sendable` struct whose copies share command recordings and result state under a lock; it cannot be subclassed.
 - `Tests/NnShellKitTests/` contains XCTest coverage; mirror new features with matching test files and method names.
 
 ## Build, Test, and Development Commands
-- `swift package resolve` ensures dependencies are ready for Swift 5.5+.
+- `swift package resolve` ensures dependencies are ready; `Package.swift` requires Swift tools 5.9+ and macOS 13+.
 - `swift build` compiles both libraries; prefer absolute program paths in examples to match runtime behavior.
 - `swift test` runs the XCTest suite; append `--enable-code-coverage` when inspecting coverage locally.
 - CI runs via GitHub Actions (`ci.yml` badge in `README.md`); keep CI green by matching its target versions.
