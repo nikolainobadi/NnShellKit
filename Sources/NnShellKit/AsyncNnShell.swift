@@ -20,8 +20,18 @@
 /// task.cancel()  // terminates claude and anything it spawned
 /// ```
 public struct AsyncNnShell: AsyncShell {
+    /// Tracks launched processes so `ChildProcesses.terminateAll(gracePeriod:)` can stop them.
+    private let registry: ProcessGroupRegistry
+
     /// Creates a new instance of AsyncNnShell.
-    public init() { }
+    public init() {
+        self.init(registry: .shared)
+    }
+
+    /// Creates a shell that tracks its processes in `registry` instead of the shared one.
+    init(registry: ProcessGroupRegistry) {
+        self.registry = registry
+    }
 
     /// Executes a bash command string.
     ///
@@ -44,6 +54,6 @@ public struct AsyncNnShell: AsyncShell {
     ///   or `CancellationError` if the awaiting task is cancelled.
     @discardableResult
     public func run(_ program: String, args: [String]) async throws -> String {
-        try await ProcessRunner(program: program, args: args).run()
+        try await ProcessRunner(program: program, args: args, registry: registry).run()
     }
 }

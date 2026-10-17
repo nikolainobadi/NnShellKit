@@ -17,8 +17,9 @@ final class ProcessRunner: @unchecked Sendable {
     private let program: String
     private let process: Process
     private let reader: FileHandle
+    private let registry: ProcessGroupRegistry
     private let drained = DispatchGroup()
-    private let state = OSAllocatedUnfairLock(initialState: RunState(output: Data(), isCancelled: false, signalTarget: nil))
+    private let state = OSAllocatedUnfairLock(initialState: RunState(output: Data(), isCancelled: false, signalTarget: nil, registryToken: nil))
 
     /// How long a cancelled process group gets to exit after `SIGTERM` before `SIGKILL`.
     private let terminationGracePeriod: TimeInterval = 1
@@ -27,7 +28,7 @@ final class ProcessRunner: @unchecked Sendable {
     /// can hold the pipe open indefinitely, so this wait must be bounded.
     private let cancelledDrainTimeout: TimeInterval = 1
 
-    init(program: String, args: [String]) {
+    init(program: String, args: [String], registry: ProcessGroupRegistry) {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(fileURLWithPath: program)
@@ -38,6 +39,7 @@ final class ProcessRunner: @unchecked Sendable {
         self.program = program
         self.process = process
         self.reader = pipe.fileHandleForReading
+        self.registry = registry
     }
 
     func run() async throws -> String {
@@ -65,15 +67,15 @@ private extension ProcessRunner {
                 return CancellationError()
             }
             do {
-                try process.run()
+                state.registryToken = try registry.launch {
+                    try process.run()
+                    return process.processIdentifier
+                }
             } catch {
                 return error
             }
 
-            let processID = process.processIdentifier
-            // Process makes each child the leader of its own group; signal the group only when
-            // that holds, so a group we don't own is never touched.
-            state.signalTarget = getpgid(processID) == processID ? -processID : processID
+            state.signalTarget = ProcessSignaller.signalTarget(for: process.processIdentifier)
             return nil
         }
 
@@ -96,11 +98,13 @@ private extension ProcessRunner {
     func finish(continuation: CheckedContinuation<String, Error>) {
         if state.withLock({ $0.isCancelled }) {
             _ = drained.wait(timeout: .now() + cancelledDrainTimeout)
+            unregister()
             continuation.resume(throwing: CancellationError())
             return
         }
 
         drained.wait()
+        unregister()
         let output = String(decoding: state.withLock { $0.output }, as: UTF8.self)
 
         guard process.terminationStatus == 0, process.terminationReason == .exit else {
@@ -109,6 +113,13 @@ private extension ProcessRunner {
         }
 
         continuation.resume(returning: output.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
+    /// Stops tracking the process once it has exited and its output has drained.
+    func unregister() {
+        if let token = state.withLock({ $0.registryToken }) {
+            registry.unregister(token)
+        }
     }
 
     func cancel() {
@@ -138,5 +149,7 @@ private extension ProcessRunner {
         var isCancelled: Bool
         /// The negated group id when the process leads its own group, otherwise its pid.
         var signalTarget: pid_t?
+        /// Set once the registry has launched and recorded the process.
+        var registryToken: ProcessGroupRegistry.Token?
     }
 }

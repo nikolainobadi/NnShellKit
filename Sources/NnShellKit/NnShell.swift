@@ -17,11 +17,23 @@ public struct NnShell: Shell {
     /// Timeout in seconds for executed processes.
     /// If nil, waits indefinitely.
     public var timeout: TimeInterval?
-    
+
+    /// Tracks launched processes so `ChildProcesses.terminateAll(gracePeriod:)` can stop them.
+    private let registry: ProcessGroupRegistry
+
+    /// How long a timed-out process group gets to exit after `SIGTERM` before `SIGKILL`.
+    private static let timeoutGracePeriod: TimeInterval = 1
+
     /// Creates a new instance of NnShell.
     /// - Parameter timeout: Optional timeout in seconds (default: nil = no timeout).
     public init(timeout: TimeInterval? = nil) {
+        self.init(timeout: timeout, registry: .shared)
+    }
+
+    /// Creates a shell that tracks its processes in `registry` instead of the shared one.
+    init(timeout: TimeInterval?, registry: ProcessGroupRegistry) {
         self.timeout = timeout
+        self.registry = registry
     }
     
     /// Executes a bash command string.
@@ -114,15 +126,19 @@ public struct NnShell: Shell {
         let termSemaphore = DispatchSemaphore(value: 0)
         p.terminationHandler = { _ in termSemaphore.signal() }
 
-        try p.run()
+        let token = try registry.launch {
+            try p.run()
+            return p.processIdentifier
+        }
+        // Runs on return, after the output pipe has drained, so a grandchild still holding it stays tracked.
+        defer { registry.unregister(token) }
+        // Resolved right after launch: once the leader exits and is reaped, its group can't be identified.
+        let signalTarget = ProcessSignaller.signalTarget(for: p.processIdentifier)
 
         if let t = timeout {
             let result = termSemaphore.wait(timeout: .now() + t)
             if result == .timedOut {
-                p.terminate()
-                if p.isRunning {
-                    _ = kill(p.processIdentifier, SIGKILL)
-                }
+                ProcessSignaller.terminate(targets: [signalTarget], gracePeriod: Self.timeoutGracePeriod)
                 _ = group.wait(timeout: .now() + 1)
                 let output = String(decoding: buffer.withLock { $0 }, as: UTF8.self)
                 throw ShellError.failed(program: program, code: 124, output: output)
@@ -153,10 +169,19 @@ public extension NnShell {
         let sem = DispatchSemaphore(value: 0)
         p.terminationHandler = { _ in sem.signal() }
         
-        do { try p.run() } catch {
+        let token: ProcessGroupRegistry.Token
+        do {
+            token = try registry.launch {
+                try p.run()
+                return p.processIdentifier
+            }
+        } catch let error as CancellationError {
+            throw error
+        } catch {
             throw ShellError.failed(program: program, code: 127, output: "Could not execute")
         }
-        
+        defer { registry.unregister(token) }
+
         sem.wait() // wait indefinitely for process to finish
         
         if p.terminationReason != .exit || p.terminationStatus != 0 {
