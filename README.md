@@ -21,6 +21,7 @@ This package is built to be simple, reliable, and easy to test.
   - [Streaming Output](#streaming-output)
   - [Timeouts](#timeouts)
 - [Using AsyncNnShell](#using-asyncnnshell)
+- [Stopping Child Processes at Shutdown](#stopping-child-processes-at-shutdown)
 - [Using MockShell](#using-mockshell)
   - [Basic Usage](#basic-usage)
   - [Result Strategies](#result-strategies)
@@ -35,7 +36,7 @@ This package is built to be simple, reliable, and easy to test.
 
 ## Overview
 
-NnShellKit provides a simple interface for bash commands and direct program execution, real time streaming, combined stdout and stderr capture, configurable timeouts, cancellable async execution, predictable testing utilities, and protocol oriented design.
+NnShellKit provides a simple interface for bash commands and direct program execution, real time streaming, combined stdout and stderr capture, configurable timeouts, cancellable async execution, child process shutdown control, predictable testing utilities, and protocol oriented design.
 
 > **Looking for more API details?** This README is a guided tour of the common
 > paths. Further details — including the MockShell recording formats and result
@@ -48,7 +49,7 @@ Requires Swift 5.9 or later and macOS 13 or later.
 
 Add the package
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.3.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.4.0")
 ```
 
 Add NnShellKit as a target dependency
@@ -125,7 +126,7 @@ let shell = NnShell(timeout: 20)
 try shell.bash("sleep 30")
 ```
 
-Timeout behavior includes terminate, kill signal fallback, and partial output capture in the error.
+On timeout, the command's process group receives `SIGTERM`, followed by `SIGKILL` after a one-second grace period if needed. The error includes partial output.
 
 ## Using AsyncNnShell
 
@@ -142,6 +143,21 @@ let status = try await shell.bash("git status")
 ```
 
 Cancelling the awaiting task requests termination of the command's process group with `SIGTERM`, escalating to `SIGKILL` after a grace period if needed. Cancellation throws `CancellationError`; non-zero exits throw `ShellError.failed`.
+
+## Stopping Child Processes at Shutdown
+
+Call `ChildProcesses.terminateAll(gracePeriod:)` from your application's shutdown path to stop running commands launched by `NnShell` or `AsyncNnShell`, including streaming commands and descendants in their process groups.
+
+Call this only when your application is about to exit: it permanently prevents new launches across all `NnShell` and `AsyncNnShell` instances. Subsequent launch attempts throw `CancellationError`; there is no reset.
+
+```swift
+import NnShellKit
+
+// In your application's shutdown path, before exiting:
+ChildProcesses.terminateAll(gracePeriod: 2)
+```
+
+Each tracked process group receives `SIGTERM`, followed by `SIGKILL` if it remains alive after the grace period in seconds. The call blocks until every tracked group has exited or been sent `SIGKILL`. Processes that move into another process group or session, such as daemons, are not reached.
 
 ## Using MockShell
 

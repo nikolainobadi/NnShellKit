@@ -263,6 +263,12 @@ let output = try mock.bash("query")  // returns "returned"
 
 ---
 
+## Shutdown Testing Boundary
+
+`MockShell` and `MockAsyncShell` do not launch processes or participate in `ChildProcesses.terminateAll(gracePeriod:)`. They do not simulate its permanent refusal of new production launches. Calling that API in a test affects every production shell in the test process and has no reset, so it is not a per-test cleanup operation.
+
+The package's own shutdown tests use `ProcessGroupRegistry` and shell initializers accepting a registry. Those are internal implementation APIs, not public helpers supplied by `NnShellTesting`.
+
 ## Best Practices
 
 - **Inject via `Shell` protocol** — Accept `Shell` in production types, supply `MockShell` in tests. Never depend on `MockShell` directly in production code.

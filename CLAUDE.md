@@ -69,10 +69,16 @@ The async abstraction also requires `Sendable` conformance and defines `bash(_:)
 - **MockAsyncShell** - Async test implementation wrapping `MockShell`; checks task cancellation before recording a command or consuming a result
 - **MockCommand** - Defines specific command behaviors for precise test control
 
+### Child Process Shutdown
+`ChildProcesses.terminateAll(gracePeriod:)` stops tracked processes from `NnShell` (including streaming commands) and `AsyncNnShell`. It signals the process group when the launched process leads it, otherwise the process itself, sending `SIGTERM` and then `SIGKILL` to remaining targets after the supplied grace period. It blocks until targets have exited or been sent `SIGKILL`; processes that escape their group are outside its signal target.
+
+This is an application-exit operation: the shared `ProcessGroupRegistry` permanently refuses new launches once shutdown begins, with no reset. Shutdown tests use fresh registries through the internal `NnShell(timeout:registry:)` and `AsyncNnShell(registry:)` initializers so they do not shut down the shared registry.
+
 ### Error Handling
 - **ShellError.failed** - Contains program path, exit code, and combined stdout/stderr output
 - Both stdout and stderr are captured to a single stream and trimmed
 - Async execution throws `CancellationError` for task cancellation
+- After `ChildProcesses.terminateAll(gracePeriod:)` begins, all new production shell launches throw `CancellationError`, including `runAndPrint`
 
 ## Development Commands
 
@@ -114,8 +120,9 @@ The MockShell provides comprehensive testing capabilities:
 
 ### Test File Organization
 All test files live in `Tests/NnShellKitTests/`:
-- `NnShellTests.swift` - Tests for the production NnShell implementation including timeout behavior
-- `AsyncNnShellTests.swift` - Tests for async execution, errors, and cancellation of processes and process groups
+- `NnShellTests.swift` - Tests for the production NnShell implementation including process-group timeouts and shutdown of captured and streaming commands
+- `AsyncNnShellTests.swift` - Tests for async execution, errors, cancellation, and child-process shutdown
+- `ProcessGroupRegistryTests.swift` - Tests for shutdown escalation, tracking, and launch/shutdown races
 - `MockShellTests.swift` - Tests for MockShell testing utility, result strategies, and concurrent command/result pairing
 - `MockAsyncShellTests.swift` - Tests for async mock results, recording, and cancellation before execution
 - `ShellErrorTests.swift` - Tests for error handling and ShellError enum
@@ -155,7 +162,7 @@ try mock.bash("git status")  // Returns "main branch"
 
 - `bash()` method delegates to `run("/bin/bash", args: ["-c", command])`
 - `runAndPrint(bash:)` method delegates to `runAndPrint("/bin/bash", args: ["-c", command])`
-- NnShell supports configurable timeouts to prevent hanging commands (not applicable to `runAndPrint`)
+- NnShell supports configurable timeouts to prevent hanging commands (not applicable to `runAndPrint`). A timeout signals the process group when the launched process leads it, otherwise the process itself, with `SIGTERM` and a `SIGKILL` fallback after one second, then throws `ShellError.failed` with code 124
 - Output is read asynchronously to prevent truncation issues
 - `runAndPrint` methods stream output directly to console using `FileHandle.standardOutput` and `FileHandle.standardError`
 - `runAndPrint` methods wait indefinitely for process completion (no timeout support)

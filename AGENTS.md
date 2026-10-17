@@ -2,7 +2,9 @@
 
 ## Project Structure & Module Organization
 - `Package.swift` declares two libraries: `NnShellKit` (production shell execution) and `NnShellTesting` (testing utilities), plus the `NnShellKitTests` suite.
-- `Sources/NnShellKit/` holds the public API (`Shell`, `NnShell`, `AsyncShell`, `AsyncNnShell`, `ShellError`) for synchronous execution with timeouts and cancellable async execution. Both shell protocols require `Sendable` conformance.
+- `Sources/NnShellKit/` holds the public API (`Shell`, `NnShell`, `AsyncShell`, `AsyncNnShell`, `ShellError`, `ChildProcesses`) for synchronous execution with timeouts and cancellable async execution. Both shell protocols require `Sendable` conformance.
+- `ChildProcesses.terminateAll(gracePeriod:)` stops tracked production shell processes, including streaming commands, and permanently refuses new launches with `CancellationError`. It blocks while sending `SIGTERM` and escalating to `SIGKILL` after the grace period; it targets the process group when the launched process leads it, otherwise the process itself. Processes that escape the group are outside its signal target. This is for application exit; there is no reset.
+- `NnShell` timeouts use the same signal targeting with a one-second grace period and throw `ShellError.failed` with code 124; `runAndPrint` has no timeout.
 - `Sources/NnShellTesting/` provides deterministic helpers (`MockShell`, `MockAsyncShell`, `MockCommand`) for unit tests and examples. `MockShell` is a `Sendable` struct whose copies share command recordings and result state under a lock; it cannot be subclassed.
 - `Tests/NnShellKitTests/` contains XCTest coverage; mirror new features with matching test files and method names.
 
@@ -22,6 +24,7 @@
 - XCTest only; place specs under `Tests/NnShellKitTests/` with files named after the type under test.
 - Name tests `testMethod_condition` and cover both success and failure branches (non-zero exits, timeout handling, streaming vs captured output).
 - Use `NnShellTesting.MockShell`/`MockCommand` for deterministic outputs instead of hitting the real shell.
+- Shutdown tests use isolated `ProcessGroupRegistry` instances via the internal `NnShell(timeout:registry:)` and `AsyncNnShell(registry:)` initializers; shutting down the shared registry would permanently prevent other tests from launching processes.
 
 ## Commit & Pull Request Guidelines
 - Commit messages are short and imperative, matching history (`update readme`, `add timeout guard`).

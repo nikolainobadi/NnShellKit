@@ -107,7 +107,8 @@ try timedShell.runAndPrint(bash: "swift test")
 ### Timeout Support
 
 - Only `run()` and `bash()` support timeouts — `runAndPrint` variants wait indefinitely
-- On timeout: sends SIGTERM, then SIGKILL if still running, throws `ShellError.failed` with exit code `124`
+- On timeout: sends SIGTERM to the command’s process group when the command leads it, otherwise to the command itself. After a one-second grace period, sends SIGKILL to anything still alive in that target, then throws `ShellError.failed` with exit code `124`.
+- Descendants that leave the process group can survive the timeout. The grace period and remaining-output wait can extend the call beyond the configured timeout.
 - Timeout output may be partial (only data read before the kill sequence)
 
 ### Error Behavior
@@ -118,6 +119,7 @@ try timedShell.runAndPrint(bash: "swift test")
 | Non-existent executable via `runAndPrint()` | `ShellError.failed` | Wrapped with code `127`, output `"Could not execute"` |
 | Non-zero exit | `ShellError.failed` | Contains program path, exit code, captured output |
 | Timeout | `ShellError.failed` | Exit code `124`, partial output captured |
+| Launch after `ChildProcesses.terminateAll(gracePeriod:)` begins | `CancellationError` | No process launched; applies to capturing and streaming methods |
 <!-- /type:NnShell -->
 
 ---
@@ -162,6 +164,7 @@ func currentBranch(using shell: any AsyncShell) async throws -> String {
 - Non-zero exit or abnormal termination throws `ShellError.failed` with the program path, termination status, and raw, untrimmed output.
 - Launch errors propagate directly from Foundation rather than being wrapped in `ShellError`.
 - Cancellation throws `CancellationError`, without a captured-output payload. Handle it separately from command failure.
+- Once `ChildProcesses.terminateAll(gracePeriod:)` begins, new launches throw `CancellationError`, even from a task that has not been cancelled.
 
 ### Cancellation
 
@@ -169,6 +172,32 @@ Cancel the task awaiting the command. A task already cancelled before launch doe
 
 Descendants that leave the process group can survive cancellation. Cancellation bounds the wait for remaining output, so an escaped descendant holding the output pipe open does not indefinitely delay the cancellation error. Do not treat the error as proof that every descendant has exited.
 <!-- /type:AsyncNnShell -->
+
+---
+
+<!-- type:ChildProcesses -->
+## Enum: ChildProcesses
+
+Import `NnShellKit`. Use this API when your application is about to exit to stop commands launched by `NnShell` and `AsyncNnShell`, including `runAndPrint` commands. Arrange the call in your application's shutdown or interrupt handling; creating a shell does not install an interrupt handler.
+
+```swift
+public enum ChildProcesses {
+    public static func terminateAll(gracePeriod: TimeInterval)
+}
+```
+
+`gracePeriod` is required and measured in seconds. The call is synchronous and does not throw.
+
+### Shutdown Behavior
+
+- Immediately refuses new launches across all production shell instances, including instances created afterward. They throw `CancellationError`. There is no reset; use this only for application shutdown.
+- Sends SIGTERM to each tracked command's process group when the command leads it, otherwise to the command itself. Targets still alive after the grace period receive SIGKILL.
+- Blocks until targets have exited or been sent SIGKILL; returning does not guarantee that every descendant has exited. Processes that move to another process group or session are outside the signal target.
+- Capturing calls remain tracked while their output drains, so a descendant holding the output pipe open can still be reached after the command itself exits. Commands already finished and unregistered are no longer tracked.
+- Signalling an already-running command does not cancel its Swift task. Its result follows the command's termination status (`ShellError.failed` for non-zero or abnormal termination); do not assume shutdown always produces `CancellationError`. An escaped descendant holding the pipe open can still delay output completion.
+
+For cancelling one async operation while keeping the application able to launch commands, cancel its awaiting task instead.
+<!-- /type:ChildProcesses -->
 
 ---
 

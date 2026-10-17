@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-10-17
+
+### Added
+- `ChildProcesses.terminateAll(gracePeriod:)` stops commands launched by `NnShell` and `AsyncNnShell`, including `runAndPrint`, by sending `SIGTERM` to their process groups and escalating to `SIGKILL` after the grace period. Call it only when your program is about to exit: it blocks during shutdown and permanently rejects new launches with `CancellationError`. Descendants that move to another process group or session are not reached
+
+### Fixed
+- `NnShell` timeouts now signal the command's process group so descendants are also stopped, allowing one second after `SIGTERM` before escalating to `SIGKILL`; timeout errors still use code `124`
+
 ## [2.3.0] - 2026-10-15
 
 ### Added
