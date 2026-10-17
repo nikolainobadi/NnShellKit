@@ -220,9 +220,112 @@ extension NnShellTests {
 }
 
 
+// MARK: - Terminating Child Processes
+extension NnShellTests {
+    @Test("terminateAll stops a running command and its grandchild")
+    func terminateAllStopsRunningCommandAndGrandchild() throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
+        let run = BackgroundRun { try sut.bash("sleep 30 & echo $! > \(pidFile); wait") }
+        let grandchildID = try ProcessProbe.waitForProcessID(in: pidFile)
+
+        registry.terminateAll(gracePeriod: 1)
+
+        #expect(run.outcome(waitingUpTo: 5).didThrow)
+        #expect(ProcessProbe.waitUntilDead(grandchildID))
+    }
+
+    @Test("terminateAll stops a runAndPrint command and its grandchild")
+    func terminateAllStopsRunAndPrintCommandAndGrandchild() throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
+        let run = BackgroundRun { try sut.runAndPrint(bash: "sleep 30 & echo $! > \(pidFile); wait") }
+        let grandchildID = try ProcessProbe.waitForProcessID(in: pidFile)
+
+        registry.terminateAll(gracePeriod: 1)
+
+        #expect(run.outcome(waitingUpTo: 5).didThrow)
+        #expect(ProcessProbe.waitUntilDead(grandchildID))
+    }
+
+    @Test("A finished command is no longer tracked")
+    func finishedCommandIsNoLongerTracked() throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+
+        try sut.run("/bin/echo", args: ["done"])
+
+        #expect(registry.isEmpty)
+    }
+
+    @Test("A failed command is no longer tracked")
+    func failedCommandIsNoLongerTracked() {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+
+        #expect(throws: ShellError.self) {
+            try sut.bash("exit 3")
+        }
+        #expect(registry.isEmpty)
+    }
+
+    @Test("run throws CancellationError after terminateAll without launching")
+    func runIsRefusedAfterTerminateAll() {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+        let markerFile = ProcessProbe.makeTemporaryFilePath()
+        registry.terminateAll(gracePeriod: 1)
+
+        #expect(throws: CancellationError.self) {
+            try sut.bash("touch \(markerFile)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: markerFile))
+    }
+
+    @Test("runAndPrint throws CancellationError, not ShellError, after terminateAll without launching")
+    func runAndPrintIsRefusedAfterTerminateAll() {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(timeout: nil, registry: registry)
+        let markerFile = ProcessProbe.makeTemporaryFilePath()
+        registry.terminateAll(gracePeriod: 1)
+
+        #expect(throws: CancellationError.self) {
+            try sut.runAndPrint(bash: "touch \(markerFile)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: markerFile))
+    }
+}
+
+
+// MARK: - Timeout
+extension NnShellTests {
+    @Test("A timeout kills a grandchild that ignores SIGTERM")
+    func timeoutKillsSigtermIgnoringGrandchild() throws {
+        let sut = makeSUT(timeout: 0.5, registry: ProcessGroupRegistry())
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
+
+        do {
+            try sut.bash("(trap '' TERM; exec sleep 30) & echo $! > \(pidFile); wait")
+            Issue.record("expected the command to time out")
+        } catch let ShellError.failed(_, code, _) {
+            #expect(code == 124)
+        }
+
+        let grandchildID = try ProcessProbe.waitForProcessID(in: pidFile)
+        #expect(ProcessProbe.waitUntilDead(grandchildID))
+    }
+}
+
+
 // MARK: - SUT
 private extension NnShellTests {
     func makeSUT() -> NnShell {
         return .init()
+    }
+
+    func makeSUT(timeout: TimeInterval?, registry: ProcessGroupRegistry) -> NnShell {
+        return .init(timeout: timeout, registry: registry)
     }
 }

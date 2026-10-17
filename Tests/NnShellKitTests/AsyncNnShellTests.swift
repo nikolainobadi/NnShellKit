@@ -131,10 +131,71 @@ extension AsyncNnShellTests {
 }
 
 
+// MARK: - Terminating Child Processes
+extension AsyncNnShellTests {
+    @Test("terminateAll stops a running command and its grandchild")
+    func terminateAllStopsRunningCommandAndGrandchild() async throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(registry: registry)
+        let pidFile = makeTemporaryFilePath()
+        let task = Task { try await sut.bash("sleep 30 & echo $! > \(pidFile); wait") }
+        let grandchildID = try await waitForProcessID(in: pidFile)
+
+        registry.terminateAll(gracePeriod: 1)
+
+        await #expect(throws: (any Error).self) {
+            try await task.value
+        }
+        #expect(await waitUntilDead(grandchildID))
+    }
+
+    @Test("A finished command is no longer tracked")
+    func finishedCommandIsNoLongerTracked() async throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(registry: registry)
+
+        try await sut.run("/bin/echo", args: ["done"])
+
+        #expect(registry.isEmpty)
+    }
+
+    @Test("A cancelled command is no longer tracked")
+    func cancelledCommandIsNoLongerTracked() async throws {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(registry: registry)
+        let pidFile = makeTemporaryFilePath()
+        let task = Task { try await sut.bash("echo $$ > \(pidFile); exec sleep 30") }
+        _ = try await waitForProcessID(in: pidFile)
+
+        task.cancel()
+        _ = try? await task.value
+
+        #expect(registry.isEmpty)
+    }
+
+    @Test("bash throws CancellationError after terminateAll without launching")
+    func bashIsRefusedAfterTerminateAll() async {
+        let registry = ProcessGroupRegistry()
+        let sut = makeSUT(registry: registry)
+        let markerFile = makeTemporaryFilePath()
+        registry.terminateAll(gracePeriod: 1)
+
+        await #expect(throws: CancellationError.self) {
+            try await sut.bash("touch \(markerFile)")
+        }
+        #expect(!FileManager.default.fileExists(atPath: markerFile))
+    }
+}
+
+
 // MARK: - SUT
 private extension AsyncNnShellTests {
     func makeSUT() -> AsyncNnShell {
         return .init()
+    }
+
+    func makeSUT(registry: ProcessGroupRegistry) -> AsyncNnShell {
+        return .init(registry: registry)
     }
 
     func makeTemporaryFilePath() -> String {
