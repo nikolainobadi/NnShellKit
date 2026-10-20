@@ -1,6 +1,6 @@
 # NnShellKit Testing Reference
 
-Test helpers for mocking shell command execution. Import `NnShellTesting` alongside `NnShellKit`.
+Test helpers for mocking shell command execution. Import `NnShellTesting`; it re-exports the public `NnShellKit` API, including `Shell`, `AsyncShell`, and `ShellError`, so a separate `import NnShellKit` is optional in test files.
 
 ---
 
@@ -100,7 +100,6 @@ public struct MockAsyncShell: AsyncShell, Sendable
 ### Usage Example
 
 ```swift
-import NnShellKit
 import NnShellTesting
 
 func mockBranchOutput() async throws -> String {

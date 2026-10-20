@@ -49,7 +49,7 @@ Requires Swift 5.9 or later and macOS 13 or later.
 
 Add the package
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.4.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.5.0")
 ```
 
 Add NnShellKit as a target dependency
@@ -161,10 +161,9 @@ Each tracked process group receives `SIGTERM`, followed by `SIGKILL` if it remai
 
 ## Using MockShell
 
-Import:
+`NnShellTesting` re-exports `NnShellKit`, so a single import provides both the mocks and core types such as `Shell`, `AsyncShell`, and `ShellError`:
 
 ```swift
-import NnShellKit
 import NnShellTesting
 ```
 
@@ -212,7 +211,6 @@ let mock = MockShell(commands: [
 In an async context:
 
 ```swift
-import NnShellKit
 import NnShellTesting
 
 let mock = MockAsyncShell(results: ["clean"], shouldThrowErrorOnFinal: false)

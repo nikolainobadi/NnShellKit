@@ -36,6 +36,7 @@ Lightweight Swift package for executing shell commands with proper error handlin
 - `run()` executes programs directly — use for discrete arguments without shell interpretation
 
 ### Testing
+- Import `NnShellTesting` for test helpers and the public `NnShellKit` API it re-exports; a separate `import NnShellKit` is optional in test files.
 - **MockShell** — Sendable struct conforming to Shell with array-based or command-specific result strategies
 - **MockAsyncShell** — Sendable AsyncShell mock with the same recording and result strategies
 - **MockCommand** — Defines specific command-to-result mappings with `.success`/`.failure` outcomes

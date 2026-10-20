@@ -6,13 +6,14 @@
 - `ChildProcesses.terminateAll(gracePeriod:)` stops tracked production shell processes, including streaming commands, and permanently refuses new launches with `CancellationError`. It blocks while sending `SIGTERM` and escalating to `SIGKILL` after the grace period; it targets the process group when the launched process leads it, otherwise the process itself. Processes that escape the group are outside its signal target. This is for application exit; there is no reset.
 - `NnShell` timeouts use the same signal targeting with a one-second grace period and throw `ShellError.failed` with code 124; `runAndPrint` has no timeout.
 - `Sources/NnShellTesting/` provides deterministic helpers (`MockShell`, `MockAsyncShell`, `MockCommand`) for unit tests and examples. `MockShell` is a `Sendable` struct whose copies share command recordings and result state under a lock; it cannot be subclassed.
+- `NnShellTesting` re-exports `NnShellKit`, so `import NnShellTesting` also exposes the production public API. Internal production types still require `@testable import NnShellKit`.
 - `Tests/NnShellKitTests/` contains XCTest coverage; mirror new features with matching test files and method names.
 
 ## Build, Test, and Development Commands
 - `swift package resolve` ensures dependencies are ready; `Package.swift` requires Swift tools 5.9+ and macOS 13+.
 - `swift build` compiles both libraries; prefer absolute program paths in examples to match runtime behavior.
 - `swift test` runs the XCTest suite; append `--enable-code-coverage` when inspecting coverage locally.
-- CI runs via GitHub Actions (`ci.yml` badge in `README.md`); keep CI green by matching its target versions.
+- CI runs via GitHub Actions (`ci.yml` badge in `README.md`) on `macos-26` with the image's default Xcode and no explicit Swift version pin; keep CI green by matching its target versions.
 
 ## Coding Style & Naming Conventions
 - Use Swift defaults with 4-space indentation and `CamelCase` types/`lowerCamelCase` members; keep parameter lists on a single line when concise.
@@ -25,6 +26,8 @@
 - Name tests `testMethod_condition` and cover both success and failure branches (non-zero exits, timeout handling, streaming vs captured output).
 - Use `NnShellTesting.MockShell`/`MockCommand` for deterministic outputs instead of hitting the real shell.
 - Shutdown tests use isolated `ProcessGroupRegistry` instances via the internal `NnShell(timeout:registry:)` and `AsyncNnShell(registry:)` initializers; shutting down the shared registry would permanently prevent other tests from launching processes.
+- The production shell test factories return `(sut:, registry:)` with a fresh registry: `NnShellTests.makeSUT(timeout:)` and `AsyncNnShellTests.makeSUT()`.
+- `ProcessProbe` in `ProcessTestHelpers.swift` provides shared synchronous and async polling for process IDs and process death; a missing PID throws `ProcessProbe.ProcessIDTimeout`.
 
 ## Commit & Pull Request Guidelines
 - Commit messages are short and imperative, matching history (`update readme`, `add timeout guard`).

@@ -52,6 +52,8 @@ NnShellKit is a lightweight Swift package that provides a simple interface for e
 
 The package follows a protocol-oriented design with synchronous and async shell interfaces:
 
+`NnShellTesting` re-exports `NnShellKit`, so `import NnShellTesting` makes the production public API available alongside the mocks. Accessing internal production types still requires `@testable import NnShellKit`.
+
 ### Shell Protocol
 The synchronous abstraction requires `Sendable` conformance and defines four methods:
 - `bash(_ command: String)` - Executes bash commands with full shell features (pipes, redirects, etc.), returns captured output
