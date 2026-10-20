@@ -9,86 +9,40 @@ import Testing
 @testable import NnShellKit
 
 struct ShellErrorTests {
-    @Test("Captures program path, exit code, and error output")
-    func capturesProgramPathExitCodeAndOutput() {
-        let programPath = "/bin/test"
-        let exitCode: Int32 = 127
-        let errorOutput = "command not found"
-        let error = ShellError.failed(program: programPath, code: exitCode, output: errorOutput)
+    @Test(arguments: [
+        (program: "/bin/test", code: Int32(127), output: "command not found"),
+        (program: "/bin/test", code: Int32(2), output: ""),
+        (program: "/usr/bin/complex", code: Int32(42), output: "Error line 1\nError line 2\nError line 3"),
+        (program: "/usr/local/bin/my-app_v2.0", code: Int32(1), output: "special error"),
+        (program: "/bin/test", code: Int32(1), output: "Error: 文件不存在 🚫")
+    ])
+    func `Keeps the program, exit code, and output it was created with`(input: (program: String, code: Int32, output: String)) {
+        let sut = makeSUT(program: input.program, code: input.code, output: input.output)
 
-        if case .failed(let program, let code, let output) = error {
-            #expect(program == programPath)
-            #expect(code == exitCode)
-            #expect(output == errorOutput)
+        if case .failed(let program, let code, let output) = sut {
+            #expect(program == input.program)
+            #expect(code == input.code)
+            #expect(output == input.output)
         } else {
             Issue.record("Expected ShellError.failed case")
         }
     }
 
-    @Test("Preserves empty error output")
-    func preservesEmptyErrorOutput() {
-        let error = ShellError.failed(program: "/bin/test", code: 2, output: "")
+    @Test(arguments: [1, 2, 126, 127, 128, 130])
+    func `Represents common shell exit codes`(code: Int32) {
+        let sut = makeSUT(program: "/bin/test", code: code, output: "test error")
 
-        if case .failed(let program, let code, let output) = error {
-            #expect(program == "/bin/test")
-            #expect(code == 2)
-            #expect(output == "")
-        } else {
-            Issue.record("Expected ShellError.failed case")
-        }
-    }
-
-    @Test("Preserves multiline error messages")
-    func preservesMultilineErrorMessages() {
-        let multilineOutput = "Error line 1\nError line 2\nError line 3"
-        let error = ShellError.failed(program: "/usr/bin/complex", code: 42, output: multilineOutput)
-
-        if case .failed(let program, let code, let output) = error {
-            #expect(program == "/usr/bin/complex")
-            #expect(code == 42)
-            #expect(output == multilineOutput)
-            #expect(output.contains("\n"))
-        } else {
-            Issue.record("Expected ShellError.failed case")
-        }
-    }
-
-    @Test("Handles special characters in program paths")
-    func handlesSpecialCharactersInProgramPaths() {
-        let specialPath = "/usr/local/bin/my-app_v2.0"
-        let error = ShellError.failed(program: specialPath, code: 1, output: "special error")
-
-        if case .failed(let program, let code, let output) = error {
-            #expect(program == specialPath)
-            #expect(code == 1)
-            #expect(output == "special error")
-        } else {
-            Issue.record("Expected ShellError.failed case")
-        }
-    }
-
-    @Test("Handles Unicode characters in error output")
-    func handlesUnicodeCharactersInErrorOutput() {
-        let unicodeOutput = "Error: 文件不存在 🚫"
-        let error = ShellError.failed(program: "/bin/test", code: 1, output: unicodeOutput)
-
-        if case .failed(let program, let code, let output) = error {
-            #expect(program == "/bin/test")
-            #expect(code == 1)
-            #expect(output == unicodeOutput)
-        } else {
-            Issue.record("Expected ShellError.failed case")
-        }
-    }
-
-    @Test("Represents common shell exit codes", arguments: [1, 2, 126, 127, 128, 130])
-    func representsCommonShellExitCodes(code: Int32) {
-        let error = ShellError.failed(program: "/bin/test", code: code, output: "test error")
-
-        if case .failed(_, let errorCode, _) = error {
+        if case .failed(_, let errorCode, _) = sut {
             #expect(errorCode == code)
         } else {
             Issue.record("Expected ShellError.failed case for code \(code)")
         }
+    }
+}
+
+// MARK: - SUT
+private extension ShellErrorTests {
+    func makeSUT(program: String, code: Int32, output: String) -> ShellError {
+        return .failed(program: program, code: code, output: output)
     }
 }

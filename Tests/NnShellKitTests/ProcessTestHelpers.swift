@@ -22,7 +22,19 @@ enum ProcessProbe {
             }
             Thread.sleep(forTimeInterval: 0.1)
         }
-        throw CancellationError()
+        throw ProcessIDTimeout(path: path)
+    }
+
+    /// Waits for a command to write a pid into `path`, suspending instead of blocking a thread.
+    static func waitForProcessID(in path: String) async throws -> pid_t {
+        for _ in 0..<50 {
+            if let contents = try? String(contentsOfFile: path, encoding: .utf8),
+               let processID = pid_t(contents.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                return processID
+            }
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        throw ProcessIDTimeout(path: path)
     }
 
     /// Waits for a command to create `path`.
@@ -47,12 +59,28 @@ enum ProcessProbe {
         return false
     }
 
+    /// Polls like the synchronous version, suspending instead of blocking a thread.
+    static func waitUntilDead(_ processID: pid_t) async -> Bool {
+        for _ in 0..<50 {
+            if kill(processID, 0) != 0 {
+                return true
+            }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return false
+    }
+
     /// A process that runs `command` through bash, configured but not launched.
     static func makeBashProcess(_ command: String) -> Process {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/bash")
         process.arguments = ["-c", command]
         return process
+    }
+
+    /// Thrown when no pid appears in time, so the failure can't be mistaken for a cancellation.
+    struct ProcessIDTimeout: Error {
+        let path: String
     }
 }
 
