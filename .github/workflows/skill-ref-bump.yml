@@ -9,7 +9,7 @@ name: Bump skill ref
 # contents:write and pull-requests:write on the marketplace repo.
 
 #
-# template-version: 3
+# template-version: 4
 #
 # Bumped whenever this file changes. sync-package-workflows.sh compares the stamp in a
 # repo's installed copy against this one, so a repo running an older template is a grep
