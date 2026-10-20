@@ -39,7 +39,6 @@ struct MockAsyncShellTests {
     }
 }
 
-
 // MARK: - Cancellation
 extension MockAsyncShellTests {
     @Test("Throws CancellationError without recording when the task is cancelled")
@@ -56,7 +55,6 @@ extension MockAsyncShellTests {
         #expect(sut.wasUnused)
     }
 }
-
 
 // MARK: - SUT
 private extension MockAsyncShellTests {

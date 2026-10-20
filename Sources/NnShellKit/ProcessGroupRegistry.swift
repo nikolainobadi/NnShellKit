@@ -69,7 +69,6 @@ final class ProcessGroupRegistry: Sendable {
     }
 }
 
-
 // MARK: - Dependencies
 extension ProcessGroupRegistry {
     /// Identifies one launch in the registry.

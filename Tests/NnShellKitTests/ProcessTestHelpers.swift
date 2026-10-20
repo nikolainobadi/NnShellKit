@@ -56,7 +56,6 @@ enum ProcessProbe {
     }
 }
 
-
 /// Runs blocking work on its own thread, so a test can act while that work is still running.
 final class BackgroundRun: @unchecked Sendable {
     private let done = DispatchSemaphore(value: 0)
@@ -64,7 +63,7 @@ final class BackgroundRun: @unchecked Sendable {
     private var thrownError: Error?
 
     init(_ work: @escaping @Sendable () throws -> Void) {
-        Thread.detachNewThread { [self] in
+        let thread = Thread { [self] in
             do {
                 try work()
             } catch {
@@ -72,6 +71,9 @@ final class BackgroundRun: @unchecked Sendable {
             }
             done.signal()
         }
+        // A semaphore can't boost its signaller, so match the waiting caller's QoS up front.
+        thread.qualityOfService = Thread.current.qualityOfService
+        thread.start()
     }
 
     /// Waits up to `timeout` seconds for the work to finish.

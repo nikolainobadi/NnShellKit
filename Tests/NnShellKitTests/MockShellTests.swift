@@ -18,7 +18,6 @@ struct MockShellTests {
     }
 }
 
-
 // MARK: - Basic Functionality & Command Recording
 extension MockShellTests {
     @Test("Returns configured results in order")
@@ -86,7 +85,6 @@ extension MockShellTests {
     }
 }
 
-
 // MARK: - Array-Based Result Strategy
 extension MockShellTests {
     @Test("Consumes array results in FIFO order")
@@ -140,7 +138,6 @@ extension MockShellTests {
         #expect(sut.executedCommands.count == 3)
     }
 }
-
 
 // MARK: - Dictionary-Based Result Strategy
 extension MockShellTests {
@@ -198,7 +195,6 @@ extension MockShellTests {
         #expect(try sut.bash("unmapped") == "")
     }
 }
-
 
 // MARK: - Reset & Verification
 extension MockShellTests {
@@ -309,7 +305,6 @@ extension MockShellTests {
     }
 }
 
-
 // MARK: - Error Handling
 extension MockShellTests {
     @Test("Throws configured error for specific command")
@@ -399,7 +394,6 @@ extension MockShellTests {
     }
 }
 
-
 // MARK: - Edge Cases
 extension MockShellTests {
     @Test("Handles empty arguments correctly")
@@ -423,7 +417,6 @@ extension MockShellTests {
         #expect(sut.executedCommands[0] == "/bin/test   spaced     arg  ")
     }
 }
-
 
 // MARK: - runAndPrint Methods
 extension MockShellTests {
@@ -518,7 +511,6 @@ extension MockShellTests {
         #expect(sut.executedCommands.count == 4)
     }
 }
-
 
 // MARK: - Concurrency
 extension MockShellTests {

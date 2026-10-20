@@ -73,7 +73,6 @@ struct NnShellTests {
     }
 }
 
-
 // MARK: - Error Handling
 extension NnShellTests {
     @Test("Throws error for non-existent program")
@@ -126,7 +125,6 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - Output Processing
 extension NnShellTests {
     @Test("Preserves internal spaces in output")
@@ -144,7 +142,6 @@ extension NnShellTests {
         #expect(!output.hasSuffix("\n"))
     }
 }
-
 
 // MARK: - Asynchronous Output Handling
 extension NnShellTests {
@@ -218,7 +215,6 @@ extension NnShellTests {
         }
     }
 }
-
 
 // MARK: - Terminating Child Processes
 extension NnShellTests {
@@ -298,7 +294,6 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - Timeout
 extension NnShellTests {
     @Test("A timeout kills a grandchild that ignores SIGTERM")
@@ -317,7 +312,6 @@ extension NnShellTests {
         #expect(ProcessProbe.waitUntilDead(grandchildID))
     }
 }
-
 
 // MARK: - SUT
 private extension NnShellTests {

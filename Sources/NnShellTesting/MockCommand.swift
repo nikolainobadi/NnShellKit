@@ -33,7 +33,6 @@ public struct MockCommand: Sendable {
     }
 }
 
-
 // MARK: - Dependencies
 public extension MockCommand {
     /// Represents the result of a mock command execution.

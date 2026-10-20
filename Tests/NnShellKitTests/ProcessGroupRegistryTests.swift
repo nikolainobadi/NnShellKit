@@ -55,7 +55,6 @@ struct ProcessGroupRegistryTests {
     }
 }
 
-
 // MARK: - Launching
 extension ProcessGroupRegistryTests {
     @Test("launch throws CancellationError after terminateAll without calling its closure")
@@ -110,7 +109,7 @@ extension ProcessGroupRegistryTests {
 
         for _ in 0..<8 {
             threadsDone.enter()
-            Thread.detachNewThread {
+            let thread = Thread {
                 for _ in 0..<10 {
                     let process = ProcessProbe.makeBashProcess("exec sleep 30")
                     do {
@@ -126,6 +125,9 @@ extension ProcessGroupRegistryTests {
                 }
                 threadsDone.leave()
             }
+            // A group wait can't boost its threads, so match the waiting caller's QoS up front.
+            thread.qualityOfService = Thread.current.qualityOfService
+            thread.start()
         }
 
         Thread.sleep(forTimeInterval: 0.05)
@@ -139,14 +141,12 @@ extension ProcessGroupRegistryTests {
     }
 }
 
-
 // MARK: - SUT
 private extension ProcessGroupRegistryTests {
     func makeSUT() -> ProcessGroupRegistry {
         return .init()
     }
 }
-
 
 // MARK: - Helpers
 private struct LaunchFailure: Error { }

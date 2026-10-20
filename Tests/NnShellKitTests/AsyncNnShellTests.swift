@@ -25,7 +25,6 @@ struct AsyncNnShellTests {
     }
 }
 
-
 // MARK: - Error Handling
 extension AsyncNnShellTests {
     @Test("Throws ShellError with the exit code and output for a failing command")
@@ -50,7 +49,6 @@ extension AsyncNnShellTests {
         }
     }
 }
-
 
 // MARK: - Cancellation
 extension AsyncNnShellTests {
@@ -130,7 +128,6 @@ extension AsyncNnShellTests {
     }
 }
 
-
 // MARK: - Terminating Child Processes
 extension AsyncNnShellTests {
     @Test("terminateAll stops a running command and its grandchild")
@@ -186,7 +183,6 @@ extension AsyncNnShellTests {
         #expect(!FileManager.default.fileExists(atPath: markerFile))
     }
 }
-
 
 // MARK: - SUT
 private extension AsyncNnShellTests {
