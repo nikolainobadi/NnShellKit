@@ -10,52 +10,52 @@ import Foundation
 @testable import NnShellKit
 
 struct NnShellTests {
-    @Test("Executes command and returns output")
-    func executesCommandAndReturnsOutput() throws {
-        let sut = makeSUT()
+    @Test
+    func `Executes command and returns output`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.run("/bin/echo", args: ["Hello, World!"])
         #expect(output == "Hello, World!")
     }
 
-    @Test("Handles multiple command arguments")
-    func handlesMultipleArguments() throws {
-        let sut = makeSUT()
+    @Test
+    func `Passes multiple arguments through to the program`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.run("/bin/echo", args: ["-n", "No newline"])
         #expect(output == "No newline")
     }
 
-    @Test("Handles commands without arguments")
-    func handlesCommandsWithoutArguments() throws {
-        let sut = makeSUT()
+    @Test
+    func `Runs a program with no arguments`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.run("/bin/echo", args: [])
         #expect(output == "")
     }
 
-    @Test("Executes bash commands with shell features")
-    func executesBashCommands() throws {
-        let sut = makeSUT()
+    @Test
+    func `Executes bash commands with shell features`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo 'Hello from bash'")
         #expect(output == "Hello from bash")
     }
 
-    @Test("Supports piped commands")
-    func supportsPipedCommands() throws {
-        let sut = makeSUT()
+    @Test
+    func `Supports piped commands`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo 'line1\nline2\nline3' | head -2")
         #expect(output == "line1\nline2")
     }
 
-    @Test("Expands environment variables")
-    func expandsEnvironmentVariables() throws {
-        let sut = makeSUT()
+    @Test
+    func `Expands environment variables`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo $HOME")
         #expect(!output.isEmpty)
         #expect(output.hasPrefix("/"))
     }
 
-    @Test("Supports output redirection")
-    func supportsOutputRedirection() throws {
-        let sut = makeSUT()
+    @Test
+    func `Supports output redirection`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let tempFile = "/tmp/nnshellkit_test_\(UUID().uuidString).txt"
         try sut.bash("echo 'test content' > \(tempFile)")
 
@@ -65,36 +65,35 @@ struct NnShellTests {
         try sut.bash("rm \(tempFile)")
     }
 
-    @Test("Chains commands with logical operators")
-    func chainsCommandsWithLogicalOperators() throws {
-        let sut = makeSUT()
+    @Test
+    func `Chains commands with logical operators`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo 'first' && echo 'second'")
         #expect(output == "first\nsecond")
     }
 }
 
-
 // MARK: - Error Handling
 extension NnShellTests {
-    @Test("Throws error for non-existent program")
-    func throwsErrorForNonExistentProgram() {
-        let sut = makeSUT()
+    @Test
+    func `Throws error for non-existent program`() {
+        let sut = makeSUT(timeout: nil).sut
         #expect(throws: (any Error).self) {
             try sut.run("/non/existent/program", args: [])
         }
     }
 
-    @Test("Throws error for failing command")
-    func throwsErrorForFailingCommand() throws {
-        let sut = makeSUT()
+    @Test
+    func `Throws error for failing command`() throws {
+        let sut = makeSUT(timeout: nil).sut
         #expect(throws: ShellError.self) {
             try sut.run("/bin/ls", args: ["/non/existent/directory"])
         }
     }
 
-    @Test("Captures error details for failing bash commands")
-    func capturesErrorDetailsForFailingBashCommands() throws {
-        let sut = makeSUT()
+    @Test
+    func `Captures error details for failing bash commands`() throws {
+        let sut = makeSUT(timeout: nil).sut
         do {
             try sut.bash("ls /non/existent/directory")
             Issue.record("Expected command to throw")
@@ -109,9 +108,9 @@ extension NnShellTests {
         }
     }
 
-    @Test("Throws error for invalid bash syntax")
-    func throwsErrorForInvalidBashSyntax() throws {
-        let sut = makeSUT()
+    @Test
+    func `Throws error for invalid bash syntax`() throws {
+        let sut = makeSUT(timeout: nil).sut
         do {
             try sut.bash("echo 'unclosed quote")
             Issue.record("Expected command to throw")
@@ -126,44 +125,52 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - Output Processing
 extension NnShellTests {
-    @Test("Preserves internal spaces in output")
-    func preservesInternalSpaces() throws {
-        let sut = makeSUT()
+    @Test
+    func `Preserves internal spaces in output`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo '  content with spaces  '")
         #expect(output == "content with spaces")
     }
 
-    @Test("Trims trailing newlines from output")
-    func trimsTrailingNewlines() throws {
-        let sut = makeSUT()
+    @Test
+    func `Trims trailing newlines from output`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let output = try sut.bash("echo 'content'")
         #expect(output == "content")
         #expect(!output.hasSuffix("\n"))
     }
-}
 
+    @Test
+    func `Captures non-ASCII output without corruption`() throws {
+        let sut = makeSUT(timeout: nil).sut
+        let text = "Error: 文件不存在 🚫"
+        let output = try sut.bash("echo '\(text)'")
+        #expect(output == text)
+    }
+}
 
 // MARK: - Asynchronous Output Handling
 extension NnShellTests {
-    @Test("Captures large output without truncation")
-    func capturesLargeOutputWithoutTruncation() throws {
-        let sut = makeSUT()
+    @Test
+    func `Captures large output without truncation`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let expectedLines = 1000
         let command = "for i in {1..\(expectedLines)}; do echo \"Line $i\"; done"
         let output = try sut.bash(command)
 
         let lines = output.components(separatedBy: .newlines)
         #expect(lines.count == expectedLines)
-        #expect(lines.first == "Line 1")
-        #expect(lines.last == "Line \(expectedLines)")
+        let firstLine = try #require(lines.first)
+        let lastLine = try #require(lines.last)
+        #expect(firstLine == "Line 1")
+        #expect(lastLine == "Line \(expectedLines)")
     }
 
-    @Test("Captures rapid output completely")
-    func capturesRapidOutputCompletely() throws {
-        let sut = makeSUT()
+    @Test
+    func `Captures rapid output completely`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let command = "for i in {1..100}; do echo -n \"Chunk$i \"; done; echo"
         let output = try sut.bash(command)
 
@@ -175,9 +182,9 @@ extension NnShellTests {
         #expect(chunkCount == 100)
     }
 
-    @Test("Merges stdout and stderr into single stream")
-    func mergesStdoutAndStderr() throws {
-        let sut = makeSUT()
+    @Test
+    func `Merges stdout and stderr into single stream`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let command = """
         echo "stdout line 1"; \
         echo "stderr line 1" >&2; \
@@ -193,9 +200,9 @@ extension NnShellTests {
         #expect(output.contains("stderr line 2"))
     }
 
-    @Test("Handles output with special characters")
-    func handlesOutputWithSpecialCharacters() throws {
-        let sut = makeSUT()
+    @Test
+    func `Keeps readable text around control characters in output`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let command = "printf 'Hello\\x00World\\x01\\x02\\x03\\nEnd'"
         let output = try sut.bash(command)
 
@@ -204,9 +211,9 @@ extension NnShellTests {
         #expect(output.contains("End"))
     }
 
-    @Test("Captures streaming output from long-running commands")
-    func capturesStreamingOutput() throws {
-        let sut = makeSUT()
+    @Test
+    func `Captures streaming output from long-running commands`() throws {
+        let sut = makeSUT(timeout: nil).sut
         let command = "for i in {1..10}; do echo \"Output $i\"; sleep 0.01; done"
         let output = try sut.bash(command)
 
@@ -219,13 +226,11 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - Terminating Child Processes
 extension NnShellTests {
-    @Test("terminateAll stops a running command and its grandchild")
-    func terminateAllStopsRunningCommandAndGrandchild() throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `Shutting down child processes stops a running command and its grandchild`() throws {
+        let (sut, registry) = makeSUT(timeout: nil)
         let pidFile = ProcessProbe.makeTemporaryFilePath()
         let run = BackgroundRun { try sut.bash("sleep 30 & echo $! > \(pidFile); wait") }
         let grandchildID = try ProcessProbe.waitForProcessID(in: pidFile)
@@ -236,10 +241,9 @@ extension NnShellTests {
         #expect(ProcessProbe.waitUntilDead(grandchildID))
     }
 
-    @Test("terminateAll stops a runAndPrint command and its grandchild")
-    func terminateAllStopsRunAndPrintCommandAndGrandchild() throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `Shutting down child processes stops a streamed command and its grandchild`() throws {
+        let (sut, registry) = makeSUT(timeout: nil)
         let pidFile = ProcessProbe.makeTemporaryFilePath()
         let run = BackgroundRun { try sut.runAndPrint(bash: "sleep 30 & echo $! > \(pidFile); wait") }
         let grandchildID = try ProcessProbe.waitForProcessID(in: pidFile)
@@ -250,20 +254,18 @@ extension NnShellTests {
         #expect(ProcessProbe.waitUntilDead(grandchildID))
     }
 
-    @Test("A finished command is no longer tracked")
-    func finishedCommandIsNoLongerTracked() throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `A finished command is no longer tracked`() throws {
+        let (sut, registry) = makeSUT(timeout: nil)
 
         try sut.run("/bin/echo", args: ["done"])
 
         #expect(registry.isEmpty)
     }
 
-    @Test("A failed command is no longer tracked")
-    func failedCommandIsNoLongerTracked() {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `A failed command is no longer tracked`() {
+        let (sut, registry) = makeSUT(timeout: nil)
 
         #expect(throws: ShellError.self) {
             try sut.bash("exit 3")
@@ -271,10 +273,9 @@ extension NnShellTests {
         #expect(registry.isEmpty)
     }
 
-    @Test("run throws CancellationError after terminateAll without launching")
-    func runIsRefusedAfterTerminateAll() {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `A command started after shutdown throws CancellationError without launching`() {
+        let (sut, registry) = makeSUT(timeout: nil)
         let markerFile = ProcessProbe.makeTemporaryFilePath()
         registry.terminateAll(gracePeriod: 1)
 
@@ -284,10 +285,9 @@ extension NnShellTests {
         #expect(!FileManager.default.fileExists(atPath: markerFile))
     }
 
-    @Test("runAndPrint throws CancellationError, not ShellError, after terminateAll without launching")
-    func runAndPrintIsRefusedAfterTerminateAll() {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(timeout: nil, registry: registry)
+    @Test
+    func `A streamed command started after shutdown throws CancellationError without launching`() {
+        let (sut, registry) = makeSUT(timeout: nil)
         let markerFile = ProcessProbe.makeTemporaryFilePath()
         registry.terminateAll(gracePeriod: 1)
 
@@ -298,12 +298,11 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - Timeout
 extension NnShellTests {
-    @Test("A timeout kills a grandchild that ignores SIGTERM")
-    func timeoutKillsSigtermIgnoringGrandchild() throws {
-        let sut = makeSUT(timeout: 0.5, registry: ProcessGroupRegistry())
+    @Test
+    func `A timeout kills a grandchild that ignores SIGTERM`() throws {
+        let sut = makeSUT(timeout: 0.5).sut
         let pidFile = ProcessProbe.makeTemporaryFilePath()
 
         do {
@@ -318,14 +317,10 @@ extension NnShellTests {
     }
 }
 
-
 // MARK: - SUT
 private extension NnShellTests {
-    func makeSUT() -> NnShell {
-        return .init()
-    }
-
-    func makeSUT(timeout: TimeInterval?, registry: ProcessGroupRegistry) -> NnShell {
-        return .init(timeout: timeout, registry: registry)
+    func makeSUT(timeout: TimeInterval?) -> (sut: NnShell, registry: ProcessGroupRegistry) {
+        let registry = ProcessGroupRegistry()
+        return (.init(timeout: timeout, registry: registry), registry)
     }
 }

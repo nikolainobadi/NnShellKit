@@ -100,11 +100,20 @@ A filter that matches nothing runs 0 tests and still **exits 0**, so a typo read
 Check the reported test count.
 
 ### Test Structure
-Tests use Swift Testing framework (not XCTest) with the following patterns:
-- `@Test("description")` for individual tests
+Tests use Swift Testing (not XCTest) and follow the `NnTesting:swift-unit-tests` skill conventions:
+- `@Test` on its own line above a backtick-escaped, behavior-driven function name — never the
+  `@Test("description")` string form. Raw identifiers need Swift 6.2+, which is why CI runs on `macos-26`.
+  Names describe observable behavior and avoid method names (`Shutting down child processes…`, not `terminateAll…`)
 - Plain structs group the tests (`struct MockShellTests { ... }`) — no `@Suite` attribute is used
-- `#expect()` for assertions
-- `#expect(throws: ErrorType.self)` for error testing
+- The first behavioral group lives in the struct; further groups are `// MARK:`-labeled extensions
+- Exactly one `makeSUT` per file, in a `private extension` labeled `// MARK: - SUT` at the bottom of the file.
+  It has no default parameters; when a test also observes a collaborator it returns a tuple
+  (e.g. `(sut:, registry:)`), and tests bind only what they use (`makeSUT(timeout: nil).sut`)
+- Shell and registry tests get a fresh `ProcessGroupRegistry` from `makeSUT`, never the shared one
+- `#expect(x)` / `#expect(!x)` for booleans, never `== true` / `== false`; unwrap optionals with
+  `try #require` before comparing
+- A value passed in and asserted back is held in one named local, not repeated as a literal
+- No comments inside test cases; file-local helpers go in a separate `private extension`, not the SUT one
 
 ## Testing Strategy
 
@@ -126,6 +135,9 @@ All test files live in `Tests/NnShellKitTests/`:
 - `MockShellTests.swift` - Tests for MockShell testing utility, result strategies, and concurrent command/result pairing
 - `MockAsyncShellTests.swift` - Tests for async mock results, recording, and cancellation before execution
 - `ShellErrorTests.swift` - Tests for error handling and ShellError enum
+- `ProcessTestHelpers.swift` - Not a test file: shared helpers for observing real processes. `ProcessProbe`
+  polls (with sync and async overloads) for pids, files, and process death, throwing `ProcessIDTimeout` when
+  no pid appears; `BackgroundRun` runs blocking work on a thread at the caller's QoS
 
 `MockShell`, `MockAsyncShell`, and `MockCommand` are **not** test files — they ship to consumers from
 `Sources/NnShellTesting/`.
@@ -183,11 +195,11 @@ try mock.bash("git status")  // Returns "main branch"
 
 - Behavior-driven unit tests (Swift Testing preferred)
 - Use `makeSUT` pattern for test organization
-- Track memory leaks with `trackForMemoryLeaks`
 - Type-safe assertions (`#expect`, `#require`)
-- Use `waitUntil` for async/reactive testing
+- Poll with a bounded `ProcessProbe` helper for process state instead of sleeping a fixed time
 
 ## CI/CD
 
-- GitHub Actions workflow runs tests on every push and pull request
-- Tests run on macOS latest with Swift 5.5
+- GitHub Actions workflow (`ci.yml`) runs `swift build` and `swift test` on pull requests to `main`
+- Runs on `macos-26` with the image's default Xcode — no Xcode or Swift version pin, so Swift 6.2+
+  is available for raw-identifier test names

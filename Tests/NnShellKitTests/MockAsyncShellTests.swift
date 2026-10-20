@@ -6,20 +6,19 @@
 //
 
 import Testing
-import NnShellKit
 import NnShellTesting
 
 struct MockAsyncShellTests {
-    @Test("Starting values empty")
-    func emptyStartingValues() {
-        let sut = makeSUT(results: [])
+    @Test
+    func `A new mock has no recorded commands`() {
+        let sut = makeSUT(results: .ordered([]))
         #expect(sut.executedCommands.isEmpty)
         #expect(sut.wasUnused)
     }
 
-    @Test("Records commands and returns configured results in order")
-    func recordsCommandsAndReturnsResultsInOrder() async throws {
-        let sut = makeSUT(results: ["first", "second"])
+    @Test
+    func `Records commands and returns configured results in order`() async throws {
+        let sut = makeSUT(results: .ordered(["first", "second"]))
 
         let output1 = try await sut.bash("git status")
         let output2 = try await sut.run("/usr/bin/git", args: ["log"])
@@ -29,9 +28,9 @@ struct MockAsyncShellTests {
         #expect(sut.executedCommands == ["git status", "/usr/bin/git log"])
     }
 
-    @Test("Returns results mapped to specific commands")
-    func returnsMappedCommandResults() async throws {
-        let sut = MockAsyncShell(commands: [MockCommand(command: "git status", output: "clean")])
+    @Test
+    func `Returns results mapped to specific commands`() async throws {
+        let sut = makeSUT(results: .byCommand([MockCommand(command: "git status", output: "clean")]))
 
         let output = try await sut.bash("git status")
 
@@ -39,12 +38,11 @@ struct MockAsyncShellTests {
     }
 }
 
-
 // MARK: - Cancellation
 extension MockAsyncShellTests {
-    @Test("Throws CancellationError without recording when the task is cancelled")
-    func throwsCancellationErrorWhenTaskIsCancelled() async {
-        let sut = makeSUT(results: ["unused"])
+    @Test
+    func `Throws CancellationError without recording when the task is cancelled`() async {
+        let sut = makeSUT(results: .ordered(["unused"]))
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
             return try await sut.bash("git push")
@@ -57,10 +55,19 @@ extension MockAsyncShellTests {
     }
 }
 
-
 // MARK: - SUT
 private extension MockAsyncShellTests {
-    func makeSUT(results: [String]) -> MockAsyncShell {
-        return .init(results: results, shouldThrowErrorOnFinal: false)
+    enum Results {
+        case ordered([String])
+        case byCommand([MockCommand])
+    }
+
+    func makeSUT(results: Results) -> MockAsyncShell {
+        switch results {
+        case .ordered(let results):
+            return .init(results: results, shouldThrowErrorOnFinal: false)
+        case .byCommand(let commands):
+            return .init(commands: commands)
+        }
     }
 }

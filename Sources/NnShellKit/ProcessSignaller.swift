@@ -47,7 +47,6 @@ enum ProcessSignaller {
     }
 }
 
-
 // MARK: - Private Methods
 private extension ProcessSignaller {
     /// How often `terminate(targets:gracePeriod:)` checks whether the targets have exited.

@@ -10,27 +10,26 @@ import Foundation
 @testable import NnShellKit
 
 struct AsyncNnShellTests {
-    @Test("Executes command and returns trimmed output")
-    func executesCommandAndReturnsTrimmedOutput() async throws {
-        let sut = makeSUT()
+    @Test
+    func `Executes command and returns trimmed output`() async throws {
+        let sut = makeSUT().sut
         let output = try await sut.run("/bin/echo", args: ["  Hello, World!  "])
         #expect(output == "Hello, World!")
     }
 
-    @Test("Supports bash features like pipes")
-    func supportsBashPipes() async throws {
-        let sut = makeSUT()
+    @Test
+    func `Supports bash features like pipes`() async throws {
+        let sut = makeSUT().sut
         let output = try await sut.bash("echo 'one two three' | wc -w | tr -d ' '")
         #expect(output == "3")
     }
 }
 
-
 // MARK: - Error Handling
 extension AsyncNnShellTests {
-    @Test("Throws ShellError with the exit code and output for a failing command")
-    func throwsShellErrorForFailingCommand() async throws {
-        let sut = makeSUT()
+    @Test
+    func `Throws ShellError with the exit code and output for a failing command`() async throws {
+        let sut = makeSUT().sut
 
         do {
             try await sut.bash("echo failure-output; exit 3")
@@ -42,21 +41,20 @@ extension AsyncNnShellTests {
         }
     }
 
-    @Test("Throws error for non-existent program")
-    func throwsErrorForNonExistentProgram() async {
-        let sut = makeSUT()
+    @Test
+    func `Throws error for non-existent program`() async {
+        let sut = makeSUT().sut
         await #expect(throws: (any Error).self) {
             try await sut.run("/nonexistent/program", args: [])
         }
     }
 }
 
-
 // MARK: - Cancellation
 extension AsyncNnShellTests {
-    @Test("Cancelling a running command throws CancellationError without waiting for it")
-    func cancellingThrowsCancellationError() async throws {
-        let sut = makeSUT()
+    @Test
+    func `Cancelling a running command throws CancellationError without waiting for it`() async throws {
+        let sut = makeSUT().sut
         let start = Date()
         let task = Task { try await sut.run("/bin/sleep", args: ["30"]) }
 
@@ -69,36 +67,36 @@ extension AsyncNnShellTests {
         #expect(Date().timeIntervalSince(start) < 5)
     }
 
-    @Test("Cancelled process is no longer alive")
-    func cancelledProcessIsNoLongerAlive() async throws {
-        let sut = makeSUT()
-        let pidFile = makeTemporaryFilePath()
+    @Test
+    func `Cancelled process is no longer alive`() async throws {
+        let sut = makeSUT().sut
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task { try await sut.bash("echo $$ > \(pidFile); exec sleep 30") }
 
-        let processID = try await waitForProcessID(in: pidFile)
+        let processID = try await ProcessProbe.waitForProcessID(in: pidFile)
         task.cancel()
         _ = try? await task.value
 
-        #expect(await waitUntilDead(processID))
+        #expect(await ProcessProbe.waitUntilDead(processID))
     }
 
-    @Test("A grandchild that ignores SIGTERM does not survive cancellation")
-    func sigtermIgnoringGrandchildDoesNotSurvive() async throws {
-        let sut = makeSUT()
-        let pidFile = makeTemporaryFilePath()
+    @Test
+    func `A grandchild that ignores SIGTERM does not survive cancellation`() async throws {
+        let sut = makeSUT().sut
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task { try await sut.bash("(trap '' TERM; exec sleep 30) & echo $! > \(pidFile); wait") }
 
-        let grandchildID = try await waitForProcessID(in: pidFile)
+        let grandchildID = try await ProcessProbe.waitForProcessID(in: pidFile)
         task.cancel()
         _ = try? await task.value
 
-        #expect(await waitUntilDead(grandchildID))
+        #expect(await ProcessProbe.waitUntilDead(grandchildID))
     }
 
-    @Test("Cancelling before the command starts never spawns it")
-    func cancellingBeforeStartNeverSpawns() async throws {
-        let sut = makeSUT()
-        let markerFile = makeTemporaryFilePath()
+    @Test
+    func `Cancelling before the command starts never spawns it`() async throws {
+        let sut = makeSUT().sut
+        let markerFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task {
             withUnsafeCurrentTask { $0?.cancel() }
             return try await sut.bash("touch \(markerFile)")
@@ -111,14 +109,13 @@ extension AsyncNnShellTests {
         #expect(!FileManager.default.fileExists(atPath: markerFile))
     }
 
-    @Test("Cancellation returns even when an escaped process keeps the output pipe open")
-    func cancellationReturnsWhenEscapedProcessHoldsPipe() async throws {
-        let sut = makeSUT()
-        let pidFile = makeTemporaryFilePath()
-        // perl's setsid moves the child into a new session, out of the process group being killed.
+    @Test
+    func `Cancellation returns even when an escaped process keeps the output pipe open`() async throws {
+        let sut = makeSUT().sut
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task { try await sut.bash("perl -e 'use POSIX; setsid(); open(F, \">\(pidFile)\"); print F $$; close(F); sleep 8' & wait") }
 
-        let escapedID = try await waitForProcessID(in: pidFile)
+        let escapedID = try await ProcessProbe.waitForProcessID(in: pidFile)
         let start = Date()
         task.cancel()
 
@@ -130,42 +127,38 @@ extension AsyncNnShellTests {
     }
 }
 
-
 // MARK: - Terminating Child Processes
 extension AsyncNnShellTests {
-    @Test("terminateAll stops a running command and its grandchild")
-    func terminateAllStopsRunningCommandAndGrandchild() async throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(registry: registry)
-        let pidFile = makeTemporaryFilePath()
+    @Test
+    func `Shutting down child processes stops a running command and its grandchild`() async throws {
+        let (sut, registry) = makeSUT()
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task { try await sut.bash("sleep 30 & echo $! > \(pidFile); wait") }
-        let grandchildID = try await waitForProcessID(in: pidFile)
+        let grandchildID = try await ProcessProbe.waitForProcessID(in: pidFile)
 
         registry.terminateAll(gracePeriod: 1)
 
         await #expect(throws: (any Error).self) {
             try await task.value
         }
-        #expect(await waitUntilDead(grandchildID))
+        #expect(await ProcessProbe.waitUntilDead(grandchildID))
     }
 
-    @Test("A finished command is no longer tracked")
-    func finishedCommandIsNoLongerTracked() async throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(registry: registry)
+    @Test
+    func `A finished command is no longer tracked`() async throws {
+        let (sut, registry) = makeSUT()
 
         try await sut.run("/bin/echo", args: ["done"])
 
         #expect(registry.isEmpty)
     }
 
-    @Test("A cancelled command is no longer tracked")
-    func cancelledCommandIsNoLongerTracked() async throws {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(registry: registry)
-        let pidFile = makeTemporaryFilePath()
+    @Test
+    func `A cancelled command is no longer tracked`() async throws {
+        let (sut, registry) = makeSUT()
+        let pidFile = ProcessProbe.makeTemporaryFilePath()
         let task = Task { try await sut.bash("echo $$ > \(pidFile); exec sleep 30") }
-        _ = try await waitForProcessID(in: pidFile)
+        _ = try await ProcessProbe.waitForProcessID(in: pidFile)
 
         task.cancel()
         _ = try? await task.value
@@ -173,11 +166,10 @@ extension AsyncNnShellTests {
         #expect(registry.isEmpty)
     }
 
-    @Test("bash throws CancellationError after terminateAll without launching")
-    func bashIsRefusedAfterTerminateAll() async {
-        let registry = ProcessGroupRegistry()
-        let sut = makeSUT(registry: registry)
-        let markerFile = makeTemporaryFilePath()
+    @Test
+    func `A command started after shutdown throws CancellationError without launching`() async {
+        let (sut, registry) = makeSUT()
+        let markerFile = ProcessProbe.makeTemporaryFilePath()
         registry.terminateAll(gracePeriod: 1)
 
         await #expect(throws: CancellationError.self) {
@@ -187,40 +179,10 @@ extension AsyncNnShellTests {
     }
 }
 
-
 // MARK: - SUT
 private extension AsyncNnShellTests {
-    func makeSUT() -> AsyncNnShell {
-        return .init()
-    }
-
-    func makeSUT(registry: ProcessGroupRegistry) -> AsyncNnShell {
-        return .init(registry: registry)
-    }
-
-    func makeTemporaryFilePath() -> String {
-        return FileManager.default.temporaryDirectory.appendingPathComponent("AsyncNnShellTests-\(UUID().uuidString)").path
-    }
-
-    func waitForProcessID(in path: String) async throws -> pid_t {
-        for _ in 0..<50 {
-            if let contents = try? String(contentsOfFile: path, encoding: .utf8),
-               let processID = pid_t(contents.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                return processID
-            }
-            try await Task.sleep(nanoseconds: 100_000_000)
-        }
-        throw CancellationError()
-    }
-
-    /// Polls rather than sleeping a fixed time, since termination escalates after a grace period.
-    func waitUntilDead(_ processID: pid_t) async -> Bool {
-        for _ in 0..<50 {
-            if kill(processID, 0) != 0 {
-                return true
-            }
-            try? await Task.sleep(nanoseconds: 100_000_000)
-        }
-        return false
+    func makeSUT() -> (sut: AsyncNnShell, registry: ProcessGroupRegistry) {
+        let registry = ProcessGroupRegistry()
+        return (.init(registry: registry), registry)
     }
 }

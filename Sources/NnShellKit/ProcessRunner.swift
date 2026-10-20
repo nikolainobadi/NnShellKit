@@ -53,7 +53,6 @@ final class ProcessRunner: @unchecked Sendable {
     }
 }
 
-
 // MARK: - Private Methods
 private extension ProcessRunner {
     func start(continuation: CheckedContinuation<String, Error>) {
@@ -140,7 +139,6 @@ private extension ProcessRunner {
         }
     }
 }
-
 
 // MARK: - Dependencies
 private extension ProcessRunner {

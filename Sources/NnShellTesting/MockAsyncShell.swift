@@ -48,7 +48,6 @@ public struct MockAsyncShell: Sendable {
     }
 }
 
-
 // MARK: - AsyncShell
 extension MockAsyncShell: AsyncShell {
     /// Simulates executing a bash command string.
@@ -79,7 +78,6 @@ extension MockAsyncShell: AsyncShell {
         return try shell.run(program, args: args)
     }
 }
-
 
 // MARK: - Test Helpers
 public extension MockAsyncShell {

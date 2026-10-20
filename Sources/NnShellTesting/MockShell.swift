@@ -64,7 +64,6 @@ public struct MockShell: Sendable {
     }
 }
 
-
 // MARK: - Shell
 extension MockShell: Shell {
     /// Simulates executing a program with the specified arguments.
@@ -180,7 +179,6 @@ public extension MockShell {
         return commands[index] == command
     }
 }
-
 
 // MARK: - Dependencies
 internal extension MockShell {
