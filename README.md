@@ -49,7 +49,7 @@ Requires Swift 5.9 or later and macOS 13 or later.
 
 Add the package
 ```swift
-.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.5.0")
+.package(url: "https://github.com/nikolainobadi/NnShellKit.git", from: "2.5.1")
 ```
 
 Add NnShellKit as a target dependency

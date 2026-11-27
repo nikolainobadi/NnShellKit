@@ -26,23 +26,14 @@ skills repo — so the API and its documentation change in the same PR. It previ
 
 The skill is consumed through the `nn-swift-skills` marketplace, pinned to a **tag** rather than
 tracking `main`. **Doc changes therefore reach consumers on release, not on merge** — a correction
-merged to `main` is invisible until the next tag. A release is two steps in two repos, but the
-second is automated:
+merged to `main` is invisible until the next tag. A release is two steps in two repos:
 
 1. Tag this repo (no `v` prefix — matches the `2.2.0` convention) and push the tag.
-2. `.github/workflows/skill-ref-bump.yml` fires on that push, rewrites `ref` in
-   `nn-swift-skills/.claude-plugin/marketplace.json`, and opens a PR there. **Merge it.**
+2. Update the skill entry's `ref` in `nn-swift-skills/.claude-plugin/marketplace.json` to
+   the release tag and merge that change in the marketplace repo. This repo has no workflow
+   to automate the bump.
 
-If that automation is ever removed the bump becomes manual, and an unbumped `ref` serves the
-previous release's docs forever — nothing errors and nothing warns.
-
-The workflow authenticates with the repo secret **`MARKETPLACE_TOKEN`**: a fine-grained PAT named
-`nn-swift-skills-ref-bump`, scoped to `nn-swift-skills` only (Contents + Pull requests, read and
-write), **expiring 2027-08-15**. It is **shared with every other package repo** publishing to that
-marketplace, so rotating it means re-setting the secret in each of them, not just here.
-
-When it expires the workflow fails loudly on tag push — a red X, not silence. Treat that as "rotate
-the shared token", not "this repo's workflow is broken."
+An unbumped `ref` continues to serve the previous release's docs.
 
 ## Project Overview
 

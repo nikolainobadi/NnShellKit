@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.1] - 2026-11-27
+
+### Changed
+- Renamed the bundled API-reference plugin and skill from `NnShellKit` to `nn-shell-kit` and moved them to `Skills/nn-shell-kit`; update references to the old skill name or path
+
 ## [2.5.0] - 2026-10-20
 
 ### Added
