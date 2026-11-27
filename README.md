@@ -40,7 +40,7 @@ NnShellKit provides a simple interface for bash commands and direct program exec
 
 > **Looking for more API details?** This README is a guided tour of the common
 > paths. Further details — including the MockShell recording formats and result
-> strategies not shown here — are documented in [`Skills/NnShellKit`](Skills/NnShellKit),
+> strategies not shown here — are documented in [`Skills/nn-shell-kit`](Skills/nn-shell-kit),
 > which lives in this repo so it changes in the same PR as the API it describes.
 
 ## Installation

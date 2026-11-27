@@ -1,6 +1,6 @@
 {
   "manifestVersion": 1,
-  "skillName": "NnShellKit",
+  "skillName": "nn-shell-kit",
   "packagePath": ".",
   "git": {
     "sha": "cd8ae6163e24243ab5eff171432da82d1c594f2c",

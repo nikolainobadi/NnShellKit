@@ -9,17 +9,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Skill Documentation
 
-`Skills/NnShellKit/` holds the published API-reference skill. It lives here — not in a separate
+`Skills/nn-shell-kit/` holds the published API-reference skill. It lives here — not in a separate
 skills repo — so the API and its documentation change in the same PR. It previously lived in the
 `nelix-swift-tools` marketplace, where nothing tied it to this package's releases.
 
 - **Any PR changing the public API must update `Skills/`.** Nothing enforces this in CI, so
   check it by hand whenever a PR touches `public`/`open`/`package` declarations in `Sources/`.
-- **`Skills/NnShellKit/.claude-plugin/plugin.json` deliberately has no `version` field.**
+- **`Skills/nn-shell-kit/.claude-plugin/plugin.json` deliberately has no `version` field.**
   Do not reintroduce one — the installer keys its cache by commit sha, and a hand-maintained
   version number is exactly the stale-number problem this layout removes.
 - **SwiftPM ignores `Skills/`** — it is not a target and must not become one.
-- `Skills/NnShellKit/skills/NnShellKit/manifest.json` pins the sha and per-file hashes of the
+- `Skills/nn-shell-kit/skills/nn-shell-kit/manifest.json` pins the sha and per-file hashes of the
   `Sources/` state the docs describe. Regenerate it when the docs are updated.
 
 ### Releasing

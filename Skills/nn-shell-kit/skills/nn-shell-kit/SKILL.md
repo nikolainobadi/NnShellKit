@@ -1,5 +1,5 @@
 ---
-name: NnShellKit
+name: nn-shell-kit
 description: NnShellKit Swift API reference for shell command execution. USE WHEN importing NnShellKit, executing shell commands from Swift, using Shell or AsyncShell protocols, NnShell, AsyncNnShell, MockShell, MockAsyncShell, ChildProcesses, process shutdown, bash commands, run process, runAndPrint, shell error handling.
 user-invocable: true
 ---
@@ -13,7 +13,7 @@ Lightweight Swift package for executing shell commands with proper error handlin
 **Platforms:** macOS 13+ | **Swift tools:** 5.9
 <!-- package_path: . --> <!-- this skill lives inside the NnShellKit repo it documents -->
 
-> This skill lives in the NnShellKit repo under `Skills/NnShellKit/`. Any PR changing the
+> This skill lives in the NnShellKit repo under `Skills/nn-shell-kit/`. Any PR changing the
 > package's public API must update it in the same change.
 
 ## Context Files
