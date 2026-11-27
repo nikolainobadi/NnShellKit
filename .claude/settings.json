@@ -1,6 +1,6 @@
 {
   "enabledPlugins": {
-    "NnShellKit@nn-swift-skills": true,
-    "NnTesting@nn-swift-skills": true
+    "nn-shell-kit@nn-skills-marketplace": true,
+    "nn-testing@nn-private-skills-marketplace": true
   }
 }
